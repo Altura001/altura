@@ -1,20 +1,11 @@
-# Development Dockerfile for Medusa
-FROM node:20-alpine
+FROM node:22-alpine
 
-# Set working directory
-WORKDIR /server
+WORKDIR /application
 
-# Copy package files and npm config
-COPY package.json package-lock.json ./
-
-# Install all dependencies using npm
-RUN npm install --legacy-peer-deps
-
-# Copy source code
 COPY . .
 
-# Expose the port Medusa runs on
-EXPOSE 9000 5173
+RUN yarn install --frozen-lockfile
 
-# Start with migrations and then the development server
-ENTRYPOINT ["./start.sh"]
+EXPOSE 9000
+
+CMD ["yarn", "dev"]
