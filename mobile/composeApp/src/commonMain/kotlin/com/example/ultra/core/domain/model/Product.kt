@@ -1,5 +1,8 @@
 package com.example.ultra.core.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Product(
     val id: String,
     val vendorId: String,
@@ -13,10 +16,8 @@ data class Product(
     val inStock: Boolean = true,
     val variants: List<ProductVariant> = emptyList(),
     val handle: String = ""
-) {
-    val formattedPrice: String get() = "$currency ${"%.2f".format(price)}"
-}
-
+)
+@Serializable
 data class ProductVariant(
     val id: String,
     val title: String,
@@ -26,5 +27,4 @@ data class ProductVariant(
     val inventoryQuantity: Int = 0
 ) {
     val isInStock: Boolean get() = inventoryQuantity > 0
-    val formattedPrice: String get() = "$currency ${"%.2f".format(price)}"
 }

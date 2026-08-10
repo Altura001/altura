@@ -2,8 +2,7 @@ import { HttpTypes } from "@medusajs/types"
 import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_URL = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
-// Force key here to override shell env
-const PUBLISHABLE_API_KEY = "pk_test_dummy"
+const PUBLISHABLE_API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
 const DEFAULT_REGION = process.env.NEXT_PUBLIC_DEFAULT_REGION || "us"
 
 const regionMapCache = {
@@ -17,6 +16,12 @@ async function getRegionMap(cacheId: string) {
   if (!BACKEND_URL) {
     throw new Error(
       "Middleware.ts: Error fetching regions. Did you set up regions in your Medusa Admin and define a MEDUSA_BACKEND_URL environment variable? Note that the variable is no longer named NEXT_PUBLIC_MEDUSA_BACKEND_URL."
+    )
+  }
+
+  if (!PUBLISHABLE_API_KEY) {
+    throw new Error(
+      "Middleware.ts: Missing NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY. Set it in web/.env.local or export it before starting Next.js."
     )
   }
 
@@ -136,6 +141,11 @@ export async function middleware(request: NextRequest) {
 
   // check if the url is a static asset
   if (request.nextUrl.pathname.includes(".")) {
+    return NextResponse.next()
+  }
+
+  // Keep storefront root at / without forcing a country prefix.
+  if (request.nextUrl.pathname === "/") {
     return NextResponse.next()
   }
 

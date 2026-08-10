@@ -13,9 +13,7 @@ data class CartItem(
     val imageUrl: String? = null
 ) {
     val subtotal: Double get() = unitPrice * quantity
-    val formattedSubtotal: String get() = "$currency ${"%.2f".format(subtotal)}"
-    val formattedPrice: String get() = "$currency ${"%.2f".format(unitPrice)}"
-    
+
     fun toProduct(): Product {
         return product ?: Product(
             id = productId,

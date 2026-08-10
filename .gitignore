@@ -61,3 +61,6 @@ temp/
 *.sqlite
 *.db
 *.db-journal
+
+backend-dotnet/src/**/bin
+backend-dotnet/src/**/obj

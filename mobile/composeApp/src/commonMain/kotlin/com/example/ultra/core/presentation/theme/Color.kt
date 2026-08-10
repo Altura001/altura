@@ -22,3 +22,17 @@ val OnSurface = Color(0xFF1C1B1F)
 
 val Error = Color(0xFFB00020)
 val OnError = Color(0xFFFFFFFF)
+
+// Altura brand colors
+val AlturaOrange = Color(0xFFFE5A00)
+val AlturaTeal = Color(0xFF2DC8B4)
+val AlturaRed = Color(0xFFE90100)
+val AlturaBlue = Color(0xFF02268B)
+val AlturaGold = Color(0xFFE9C80D)
+val AlturaYellow = Color(0xFFFFC107)
+val AlturaCyan = Color(0xFF0DCAF0)
+val AlturaBackground = Color(0xFFECEDEF)
+val AlturaSearchBg = Color(0xFFECEDEF)
+val AlturaCardBg = Color(0xFFFFFFFF)
+val AlturaTextSecondary = Color(0xFF797474)
+val AlturaDotInactive = Color(0xFFD9D9D9)

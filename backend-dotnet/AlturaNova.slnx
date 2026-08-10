@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AlturaNova.Api/AlturaNova.Api.csproj" />
+    <Project Path="src/AlturaNova.Application/AlturaNova.Application.csproj" />
+    <Project Path="src/AlturaNova.Domain/AlturaNova.Domain.csproj" />
+    <Project Path="src/AlturaNova.Infrastructure/AlturaNova.Infrastructure.csproj" />
+  </Folder>
+</Solution>

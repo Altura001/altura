@@ -1,0 +1,44 @@
+# Altura Nova .NET backend — local container stack.
+# Ports are deliberately offset from the Medusa stack (5432/6379/9000) so both can run side by side.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: altura-nova-postgres
+    environment:
+      POSTGRES_DB: altura_nova
+      POSTGRES_USER: altura
+      POSTGRES_PASSWORD: altura_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - altura-nova-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U altura -d altura_nova"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: altura-nova-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=altura_nova;Username=altura;Password=altura_dev_password"
+      Jwt__Secret: "CHANGE_ME_dev_only_super_secret_key_at_least_32_bytes_long_1234567890"
+      # Paystack test keys — set these via your shell/.env to enable real payments.
+      Paystack__SecretKey: "${PAYSTACK_SECRET_KEY:-}"
+      Paystack__PublicKey: "${PAYSTACK_PUBLIC_KEY:-}"
+      Paystack__Currency: "${PAYSTACK_CURRENCY:-NGN}"
+    ports:
+      - "8080:8080"
+
+volumes:
+  altura-nova-db:
+    name: altura-nova-db

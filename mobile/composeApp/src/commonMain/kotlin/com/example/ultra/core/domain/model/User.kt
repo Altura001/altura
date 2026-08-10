@@ -5,8 +5,7 @@ data class User(
     val email: String,
     val firstName: String,
     val lastName: String,
+    val accountType: AuthAccountType = AuthAccountType.CUSTOMER,
     val phone: String? = null,
     val avatarUrl: String? = null
-) {
-    val fullName: String get() = "$firstName $lastName"
-}
+)

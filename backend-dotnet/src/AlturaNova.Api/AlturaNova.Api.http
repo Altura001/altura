@@ -1,0 +1,325 @@
+@baseUrl = http://localhost:8080
+@contentType = application/json
+
+### Health check
+GET {{baseUrl}}/health
+
+### ---------------------------------------------------------------------------
+### AUTH
+### ---------------------------------------------------------------------------
+
+### Register a customer
+# @name registerCustomer
+POST {{baseUrl}}/api/auth/register/customer
+Content-Type: {{contentType}}
+
+{
+  "email": "jane@example.com",
+  "password": "password123",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "phone": "+15551234567"
+}
+
+### Register a vendor (creates a store)
+POST {{baseUrl}}/api/auth/register/vendor
+Content-Type: {{contentType}}
+
+{
+  "email": "owner@nova-store.com",
+  "password": "password123",
+  "firstName": "Owner",
+  "lastName": "One",
+  "storeName": "Nova Store",
+  "phone": "+15557654321"
+}
+
+### Login
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "jane@example.com",
+  "password": "password123"
+}
+
+### Capture the access token from the login response
+@accessToken = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### Current user
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Refresh tokens
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Logout (revoke refresh token)
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ---------------------------------------------------------------------------
+### CATALOG (public)
+### ---------------------------------------------------------------------------
+
+### List vendors
+GET {{baseUrl}}/api/vendors
+
+### List products (paged)
+GET {{baseUrl}}/api/products?page=1&pageSize=20
+
+### Search products
+GET {{baseUrl}}/api/products?search=headphones
+
+### Get product by handle
+GET {{baseUrl}}/api/products/handle/wireless-headphones
+
+### ---------------------------------------------------------------------------
+### CART (requires auth)
+### ---------------------------------------------------------------------------
+
+### Get cart
+GET {{baseUrl}}/api/cart
+Authorization: Bearer {{accessToken}}
+
+### Add an item (replace variantId with a real one from a product response)
+POST {{baseUrl}}/api/cart/items
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "variantId": "00000000-0000-0000-0000-000000000000",
+  "quantity": 2
+}
+
+### Update a cart item quantity (replace itemId)
+PATCH {{baseUrl}}/api/cart/items/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "quantity": 3
+}
+
+### Remove a cart item (replace itemId)
+DELETE {{baseUrl}}/api/cart/items/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+
+### Clear the cart
+DELETE {{baseUrl}}/api/cart
+Authorization: Bearer {{accessToken}}
+
+### ---------------------------------------------------------------------------
+### ORDERS (requires auth)
+### ---------------------------------------------------------------------------
+
+### Checkout the current cart
+POST {{baseUrl}}/api/orders/checkout
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "shippingAddress": {
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "line1": "123 Main St",
+    "city": "Berlin",
+    "postalCode": "10115",
+    "country": "DE",
+    "phone": "+15551234567"
+  }
+}
+
+### List orders
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{accessToken}}
+
+### Get one order (replace orderId)
+GET {{baseUrl}}/api/orders/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{accessToken}}
+
+### Pay for an order — starts Paystack hosted checkout (replace orderId)
+# Returns { authorizationUrl, reference, ... }. Open authorizationUrl to pay.
+POST {{baseUrl}}/api/orders/00000000-0000-0000-0000-000000000000/pay
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "callbackUrl": null
+}
+
+### Verify a payment after completing Paystack checkout (replace orderId)
+POST {{baseUrl}}/api/orders/00000000-0000-0000-0000-000000000000/verify
+Authorization: Bearer {{accessToken}}
+
+### Paystack webhook (server-to-server; requires a valid x-paystack-signature)
+POST {{baseUrl}}/api/webhooks/paystack
+Content-Type: {{contentType}}
+x-paystack-signature: <hmac-sha512-of-body-with-secret-key>
+
+{
+  "event": "charge.success",
+  "data": { "reference": "altura_xxx" }
+}
+
+### Cancel an order (replace orderId)
+POST {{baseUrl}}/api/orders/00000000-0000-0000-0000-000000000000/cancel
+Authorization: Bearer {{accessToken}}
+
+### ---------------------------------------------------------------------------
+### ACCOUNT (requires auth)
+### ---------------------------------------------------------------------------
+
+### Update profile
+PUT {{baseUrl}}/api/account/profile
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "phone": "+15550001111"
+}
+
+### Change password
+POST {{baseUrl}}/api/account/change-password
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "currentPassword": "password123",
+  "newPassword": "newPassword456"
+}
+
+### ---------------------------------------------------------------------------
+### CATEGORIES (public)
+### ---------------------------------------------------------------------------
+
+### List categories
+GET {{baseUrl}}/api/categories
+
+### ---------------------------------------------------------------------------
+### VENDOR CONSOLE (role: Vendor)  — login as vendor@altura.test / Password123!
+### ---------------------------------------------------------------------------
+
+### Vendor login
+# @name vendorLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "vendor@altura.test",
+  "password": "Password123!"
+}
+
+@vendorToken = {{vendorLogin.response.body.accessToken}}
+
+### Get my store
+GET {{baseUrl}}/api/vendor/store
+Authorization: Bearer {{vendorToken}}
+
+### Update my store
+PUT {{baseUrl}}/api/vendor/store
+Authorization: Bearer {{vendorToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Altura Tech Store",
+  "description": "Premium gadgets and audio.",
+  "logoUrl": "https://picsum.photos/seed/logo/200"
+}
+
+### List my products (includes unpublished)
+GET {{baseUrl}}/api/vendor/products
+Authorization: Bearer {{vendorToken}}
+
+### Create a product
+POST {{baseUrl}}/api/vendor/products
+Authorization: Bearer {{vendorToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Bluetooth Speaker",
+  "description": "Portable speaker with deep bass.",
+  "thumbnailUrl": "https://picsum.photos/seed/spk/400",
+  "currency": "EUR",
+  "isPublished": true,
+  "images": ["https://picsum.photos/seed/spk1/400"],
+  "variants": [
+    { "title": "Black", "sku": "SPK-BLK", "price": 45.00, "inventoryQuantity": 10 },
+    { "title": "White", "sku": "SPK-WHT", "price": 45.00, "inventoryQuantity": 5 }
+  ]
+}
+
+### Update a product (replace productId; include variant "id" to keep a variant)
+PUT {{baseUrl}}/api/vendor/products/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{vendorToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Bluetooth Speaker v2",
+  "description": "Updated description.",
+  "currency": "EUR",
+  "isPublished": true,
+  "images": [],
+  "variants": [
+    { "title": "Black", "sku": "SPK-BLK", "price": 49.99, "inventoryQuantity": 20 }
+  ]
+}
+
+### Publish / unpublish a product (replace productId)
+PATCH {{baseUrl}}/api/vendor/products/00000000-0000-0000-0000-000000000000/publish
+Authorization: Bearer {{vendorToken}}
+Content-Type: {{contentType}}
+
+{
+  "isPublished": false
+}
+
+### Delete a product (replace productId)
+DELETE {{baseUrl}}/api/vendor/products/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{vendorToken}}
+
+### Vendor orders (vendor-scoped items only)
+GET {{baseUrl}}/api/vendor/orders
+Authorization: Bearer {{vendorToken}}
+
+### ---------------------------------------------------------------------------
+### ADMIN (role: Admin)  — login as admin@altura.test / Password123!
+### ---------------------------------------------------------------------------
+
+### Admin login
+# @name adminLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@altura.test",
+  "password": "Password123!"
+}
+
+@adminToken = {{adminLogin.response.body.accessToken}}
+
+### List all orders
+GET {{baseUrl}}/api/admin/orders
+Authorization: Bearer {{adminToken}}
+
+### Update an order's status (replace orderId)
+PATCH {{baseUrl}}/api/admin/orders/00000000-0000-0000-0000-000000000000/status
+Authorization: Bearer {{adminToken}}
+Content-Type: {{contentType}}
+
+{
+  "status": "Shipped"
+}

@@ -8,7 +8,11 @@ data class ProfileState(
     val isLoggedIn: Boolean = false
 )
 
-sealed interface ProfileIntent {
-    data object CheckAuthState : ProfileIntent
-    data object Logout : ProfileIntent
+sealed interface ProfileAction {
+    data object Logout : ProfileAction
+    data object GoToLogin : ProfileAction
+}
+
+sealed interface ProfileEvent {
+    data object NavigateToLogin : ProfileEvent
 }

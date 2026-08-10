@@ -26,28 +26,48 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.ultra.cart.presentation.intent.CartIntent
+import com.example.ultra.cart.presentation.intent.CartAction
+import com.example.ultra.cart.presentation.intent.CartEvent
 import com.example.ultra.cart.presentation.intent.CartState
 import com.example.ultra.cart.presentation.viewmodel.CartViewModel
 import com.example.ultra.core.domain.model.Cart
 import com.example.ultra.core.domain.model.CartItem
+import com.example.ultra.core.presentation.ObserveAsEvents
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun CartScreenRoot(
-    viewModel: CartViewModel = koinViewModel()
+    viewModel: CartViewModel = koinViewModel(),
+    onCheckout: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    ObserveAsEvents(viewModel.events) { event ->
+        when (event) {
+            is CartEvent.ShowError -> scope.launch {
+                snackbarHostState.showSnackbar(event.message.asString())
+            }
+        }
+    }
+
     CartScreen(
         state = state,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onCheckout = onCheckout,
+        snackbarHostState = snackbarHostState
     )
 }
 
@@ -55,15 +75,16 @@ fun CartScreenRoot(
 @Composable
 fun CartScreen(
     state: CartState,
-    onAction: (CartIntent) -> Unit,
+    onAction: (CartAction) -> Unit,
+    onCheckout: () -> Unit = {},
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     modifier: Modifier = Modifier
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Cart") }
-            )
+            TopAppBar(title = { Text("Cart") })
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
         Box(
@@ -79,13 +100,18 @@ fun CartScreen(
                 }
                 state.error != null -> {
                     Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = state.error ?: "Unknown error",
-                            color = MaterialTheme.colorScheme.error
+                            text = state.error.asString(),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge
                         )
+                        Button(onClick = { onAction(CartAction.LoadCart) }) {
+                            Text("Retry")
+                        }
                     }
                 }
                 state.cart?.isEmpty == true -> {
@@ -109,7 +135,8 @@ fun CartScreen(
                     state.cart?.let { cart ->
                         CartContent(
                             cart = cart,
-                            onIntent = onAction
+                            onIntent = onAction,
+                            onCheckout = onCheckout
                         )
                     }
                 }
@@ -121,7 +148,8 @@ fun CartScreen(
 @Composable
 private fun CartContent(
     cart: Cart,
-    onIntent: (CartIntent) -> Unit
+    onIntent: (CartAction) -> Unit,
+    onCheckout: () -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -131,13 +159,13 @@ private fun CartContent(
             CartItemCard(
                 cartItem = cartItem,
                 onIncrement = {
-                    onIntent(CartIntent.UpdateQuantity(cartItem.id, cartItem.quantity + 1))
+                    onIntent(CartAction.UpdateQuantity(cartItem.id, cartItem.quantity + 1))
                 },
                 onDecrement = {
-                    onIntent(CartIntent.UpdateQuantity(cartItem.id, cartItem.quantity - 1))
+                    onIntent(CartAction.UpdateQuantity(cartItem.id, cartItem.quantity - 1))
                 },
                 onRemove = {
-                    onIntent(CartIntent.RemoveItem(cartItem.id))
+                    onIntent(CartAction.RemoveItem(cartItem.id))
                 }
             )
         }
@@ -145,7 +173,7 @@ private fun CartContent(
         item {
             CartSummary(
                 cart = cart,
-                onCheckout = { }
+                onCheckout = onCheckout
             )
         }
     }
@@ -176,7 +204,7 @@ private fun CartItemCard(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = cartItem.formattedPrice,
+                        text = "${cartItem.currency} ${"%.2f".format(cartItem.unitPrice)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -213,7 +241,7 @@ private fun CartItemCard(
                     }
                 }
                 Text(
-                    text = cartItem.formattedSubtotal,
+                    text = "${cartItem.currency} ${"%.2f".format(cartItem.subtotal)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -246,7 +274,7 @@ private fun CartSummary(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Items (${cart.itemCount})")
-                Text(cart.formattedTotal)
+                Text("${cart.currency} ${"%.2f".format(cart.items.sumOf { it.subtotal })}")
             }
             
             Row(
@@ -269,7 +297,7 @@ private fun CartSummary(
             ) {
                 Text("Total", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = cart.formattedTotal,
+                    text = "${cart.currency} ${"%.2f".format(cart.items.sumOf { it.subtotal })}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )

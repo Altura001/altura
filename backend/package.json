@@ -16,6 +16,7 @@
     "postinstall": "node node_modules/@techlabi/medusa-marketplace-plugin/.medusa/server/src/patch-admin.js",
     "build": "medusa build",
     "seed": "medusa exec ./src/scripts/seed.ts",
+    "seed:publishable-key": "medusa exec ./src/scripts/seed-publishable-key.ts",
     "start": "medusa start",
     "dev": "medusa develop",
     "test:integration:http": "TEST_TYPE=integration:http NODE_OPTIONS=--experimental-vm-modules jest --silent=false --runInBand --forceExit",

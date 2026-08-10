@@ -1,0 +1,251 @@
+using AlturaNova.Application.Common.Mapping;
+using AlturaNova.Application.Common.Payments;
+using AlturaNova.Application.DTOs.Orders;
+using AlturaNova.Application.Interfaces;
+using AlturaNova.Domain.Entities;
+using AlturaNova.Domain.Enums;
+using AlturaNova.Domain.Exceptions;
+using AlturaNova.Domain.Interfaces;
+
+namespace AlturaNova.Application.Services;
+
+/// <summary>Implements checkout, retrieval, payment, and lifecycle transitions for orders.</summary>
+public sealed class OrderService(
+    ICartRepository carts,
+    IProductRepository products,
+    IOrderRepository orders,
+    IUserRepository users,
+    IPaymentGateway paymentGateway,
+    IUnitOfWork unitOfWork) : IOrderService
+{
+    public async Task<OrderResponse> CheckoutAsync(Guid userId, CheckoutRequest request, CancellationToken ct = default)
+    {
+        var cart = await carts.GetActiveByUserAsync(userId, ct);
+        if (cart is null || cart.Items.Count == 0)
+            throw new ConflictException("Your cart is empty.");
+
+        var currency = cart.Items.First().Currency;
+        var order = new Order
+        {
+            UserId = userId,
+            Status = OrderStatus.Pending,
+            Currency = currency
+        };
+
+        decimal subtotal = 0m;
+
+        foreach (var item in cart.Items.OrderBy(i => i.CreatedAt))
+        {
+            var variant = await products.GetVariantAsync(item.VariantId, ct)
+                ?? throw new ConflictException($"Product for cart item '{item.Title}' is no longer available.");
+
+            if (item.Quantity > variant.InventoryQuantity)
+                throw new ConflictException(
+                    $"Insufficient stock for '{item.Title}': {variant.InventoryQuantity} available, {item.Quantity} requested.");
+
+            // Decrement inventory (tracked entity → persisted on SaveChanges).
+            variant.InventoryQuantity -= item.Quantity;
+
+            var lineTotal = item.UnitPrice * item.Quantity;
+            subtotal += lineTotal;
+
+            order.Items.Add(new OrderItem
+            {
+                OrderId = order.Id,
+                ProductId = item.ProductId,
+                VariantId = item.VariantId,
+                VendorId = variant.Product?.VendorId ?? Guid.Empty,
+                ProductName = item.Title,
+                Sku = variant.Sku,
+                ThumbnailUrl = item.ThumbnailUrl,
+                UnitPrice = item.UnitPrice,
+                Quantity = item.Quantity,
+                LineTotal = lineTotal,
+                Currency = item.Currency
+            });
+        }
+
+        order.Subtotal = subtotal;
+        order.Total = subtotal; // No shipping/tax in v1.
+        order.ShippingAddress = MapAddress(order.Id, request.ShippingAddress);
+
+        await orders.AddAsync(order, ct);
+
+        // Empty the cart now that the order captured its contents.
+        cart.Items.Clear();
+        cart.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await unitOfWork.SaveChangesAsync(ct);
+
+        return order.ToResponse();
+    }
+
+    public async Task<OrderListResponse> GetOrdersAsync(Guid userId, CancellationToken ct = default)
+    {
+        var list = await orders.GetByUserAsync(userId, ct);
+        return new OrderListResponse(list.Select(o => o.ToResponse()).ToList(), list.Count);
+    }
+
+    public async Task<OrderResponse> GetOrderAsync(Guid userId, Guid orderId, CancellationToken ct = default)
+    {
+        var order = await orders.GetByIdForUserAsync(orderId, userId, ct)
+            ?? throw new NotFoundException("Order not found.");
+        return order.ToResponse();
+    }
+
+    public async Task<PaymentInitiationResponse> InitiatePaymentAsync(Guid userId, Guid orderId, string? callbackUrl, CancellationToken ct = default)
+    {
+        var order = await orders.GetTrackedByIdForUserAsync(orderId, userId, ct)
+            ?? throw new NotFoundException("Order not found.");
+
+        if (order.Status != OrderStatus.Pending)
+            throw new ConflictException($"Only pending orders can be paid; this order is {order.Status}.");
+
+        var user = await users.GetByIdAsync(userId, ct)
+            ?? throw new NotFoundException("User not found.");
+
+        var amountSubunits = ToSubunits(order.Total);
+        var reference = BuildReference(order.Id);
+
+        var init = await paymentGateway.InitializeAsync(
+            new PaymentInitializationRequest(
+                amountSubunits,
+                paymentGateway.DefaultCurrency,
+                user.Email,
+                reference,
+                callbackUrl),
+            ct);
+
+        order.PaymentReference = init.Reference;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        orders.Update(order);
+        await unitOfWork.SaveChangesAsync(ct);
+
+        return new PaymentInitiationResponse(
+            order.Id,
+            paymentGateway.ProviderName,
+            init.AuthorizationUrl,
+            init.AccessCode,
+            init.Reference,
+            paymentGateway.PublicKey,
+            amountSubunits,
+            paymentGateway.DefaultCurrency);
+    }
+
+    public async Task<OrderResponse> VerifyPaymentAsync(Guid userId, Guid orderId, CancellationToken ct = default)
+    {
+        var order = await orders.GetTrackedByIdForUserAsync(orderId, userId, ct)
+            ?? throw new NotFoundException("Order not found.");
+
+        if (order.Status == OrderStatus.Paid)
+            return order.ToResponse(); // Idempotent.
+
+        if (string.IsNullOrWhiteSpace(order.PaymentReference))
+            throw new ConflictException("No payment has been initiated for this order.");
+
+        await ApplyVerificationAsync(order, ct);
+        await unitOfWork.SaveChangesAsync(ct);
+        return order.ToResponse();
+    }
+
+    public async Task ConfirmPaymentByReferenceAsync(string reference, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(reference))
+            return;
+
+        var order = await orders.GetTrackedByPaymentReferenceAsync(reference, ct);
+        if (order is null || order.Status == OrderStatus.Paid)
+            return; // Unknown reference or already paid → idempotent no-op.
+
+        await ApplyVerificationAsync(order, ct);
+        await unitOfWork.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Verifies the order's reference with the provider and marks it paid on a matching success.</summary>
+    private async Task ApplyVerificationAsync(Order order, CancellationToken ct)
+    {
+        var verification = await paymentGateway.VerifyAsync(order.PaymentReference!, ct);
+
+        if (verification.Status != PaymentStatus.Success)
+            return; // Leave the order pending; caller returns current state.
+
+        if (verification.AmountSubunits != ToSubunits(order.Total))
+            throw new ConflictException("The paid amount does not match the order total.");
+
+        order.Status = OrderStatus.Paid;
+        order.PaidAt = DateTimeOffset.UtcNow;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        orders.Update(order);
+    }
+
+    public async Task<OrderResponse> CancelAsync(Guid userId, Guid orderId, CancellationToken ct = default)
+    {
+        var order = await orders.GetTrackedByIdForUserAsync(orderId, userId, ct)
+            ?? throw new NotFoundException("Order not found.");
+
+        if (order.Status is not (OrderStatus.Pending or OrderStatus.Paid))
+            throw new ConflictException($"Orders in status {order.Status} cannot be cancelled.");
+
+        await RestockAsync(order, ct);
+        order.Status = OrderStatus.Cancelled;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        orders.Update(order);
+
+        await unitOfWork.SaveChangesAsync(ct);
+        return order.ToResponse();
+    }
+
+    public async Task<OrderListResponse> GetAllAsync(CancellationToken ct = default)
+    {
+        var list = await orders.GetAllAsync(ct);
+        return new OrderListResponse(list.Select(o => o.ToResponse()).ToList(), list.Count);
+    }
+
+    public async Task<OrderResponse> UpdateStatusAsync(Guid orderId, OrderStatus status, CancellationToken ct = default)
+    {
+        var order = await orders.GetTrackedByIdAsync(orderId, ct)
+            ?? throw new NotFoundException("Order not found.");
+
+        if (order.Status == OrderStatus.Cancelled)
+            throw new ConflictException("A cancelled order cannot change status.");
+
+        // Restock when an admin cancels an order that previously reserved stock.
+        if (status == OrderStatus.Cancelled)
+            await RestockAsync(order, ct);
+
+        order.Status = status;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        orders.Update(order);
+
+        await unitOfWork.SaveChangesAsync(ct);
+        return order.ToResponse();
+    }
+
+    private async Task RestockAsync(Order order, CancellationToken ct)
+    {
+        foreach (var item in order.Items)
+        {
+            var variant = await products.GetVariantAsync(item.VariantId, ct);
+            if (variant is not null)
+                variant.InventoryQuantity += item.Quantity;
+        }
+    }
+
+    private static long ToSubunits(decimal amount) => (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
+
+    private static string BuildReference(Guid orderId) => $"altura_{orderId:N}_{Guid.NewGuid():N}"[..40];
+
+    private static OrderAddress MapAddress(Guid orderId, AddressRequest a) => new()
+    {
+        OrderId = orderId,
+        FirstName = a.FirstName.Trim(),
+        LastName = a.LastName.Trim(),
+        Line1 = a.Line1.Trim(),
+        Line2 = a.Line2,
+        City = a.City.Trim(),
+        State = a.State,
+        PostalCode = a.PostalCode.Trim(),
+        Country = a.Country.Trim().ToUpperInvariant(),
+        Phone = a.Phone
+    };
+}

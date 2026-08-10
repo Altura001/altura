@@ -8,8 +8,13 @@ if (process.env.MEDUSA_BACKEND_URL) {
   MEDUSA_BACKEND_URL = process.env.MEDUSA_BACKEND_URL
 }
 
-// Force key from .env.local (not from shell env)
-const PUBLISHABLE_KEY = "pk_test_dummy"
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error(
+    "Missing NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY. Set it in web/.env.local."
+  )
+}
 
 export const sdk = new Medusa({
   baseUrl: MEDUSA_BACKEND_URL,
