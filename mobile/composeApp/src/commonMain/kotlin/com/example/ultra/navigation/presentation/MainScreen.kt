@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,31 +35,66 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.ultra.auth.presentation.auth.screen.AuthScreenRoot
 import com.example.ultra.cart.presentation.cart.screen.CartScreenRoot
-import com.example.ultra.catalog.presentation.catalog.screen.CatalogScreenRoot
+import com.example.ultra.catalog.presentation.catalog.screen.HomeScreenRoot
 import com.example.ultra.catalog.presentation.productdetail.ProductDetailScreenRoot
+import com.example.ultra.category.presentation.category.screen.CategoryScreenRoot
 import com.example.ultra.checkout.presentation.screen.CheckoutScreenRoot
 import com.example.ultra.core.domain.repository.AuthRepository
 import com.example.ultra.profile.presentation.profile.screen.ProfileScreenRoot
+import com.example.ultra.wishlist.presentation.category.screen.WishlistScreenRoot
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
 
-private const val ROUTE_AUTH = "auth"
-//private const val ROUTE_PRODUCT_DETAIL = "product_detail/{handle}"
-private const val ROUTE_CHECKOUT = "checkout"
-
 enum class BottomNavItem(
-    val route: String,
     val title: String,
+    val route: AppRoute,
     val icon: ImageVector
 ) {
-    Catalog("catalog", "Catalog", Icons.Default.Store),
-    Cart("cart", "Cart", Icons.Default.ShoppingCart),
-    Profile("profile", "Profile", Icons.Default.Person)
+    HOME( "Home", AppRoute.Home, Icons.Default.Home),
+    CATEGORY("Category", AppRoute.Category, Icons.AutoMirrored.Filled.List),
+    WISHLIST( "Wishlist", AppRoute.Wishlist, Icons.Default.Favorite),
+    CART("Cart", AppRoute.Cart, Icons.Default.ShoppingCart),
+    ACCOUNT( "Account", AppRoute.Account, Icons.Default.Person)
 }
 
+sealed interface AppRoute {
+    val route: String
+    @Serializable
+    object Auth : AppRoute {
+        override val route: String = "auth"
+    }
 
-@Serializable
-data class ProductDetail(val handle: String)
+    @Serializable
+    object Home : AppRoute {
+        override val route: String = "home"
+    }
+    @Serializable
+    object Category : AppRoute {
+        override val route: String = "category"
+    }
+    @Serializable
+    object Wishlist : AppRoute {
+        override val route: String = "wishlist"
+    }
+    @Serializable
+    object Cart : AppRoute {
+        override val route: String = "cart"
+    }
+    @Serializable
+    object Account : AppRoute {
+        override val route: String = "account"
+    }
+    @Serializable
+    object Checkout : AppRoute {
+        override val route: String = "checkout"
+    }
+
+    @Serializable
+    data class ProductDetail (val handle: String) : AppRoute {
+        override val route: String = "product_detail/$handle"
+    }
+}
+
 
 @Composable
 fun MainScreen() {
@@ -65,7 +102,7 @@ fun MainScreen() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val isOnAuthScreen = currentDestination?.route == ROUTE_AUTH
+    val isOnAuthScreen = currentDestination?.route == AppRoute.Auth.route
 
     Scaffold(
         bottomBar = {
@@ -75,7 +112,7 @@ fun MainScreen() {
                         NavigationBarItem(
                             icon = { Icon(item.icon, contentDescription = item.title) },
                             label = { Text(item.title) },
-                            selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                            selected = currentDestination?.hierarchy?.any { it.route == item.route.route } == true,
                             onClick = {
                                 navController.navigate(item.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
@@ -93,24 +130,31 @@ fun MainScreen() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = BottomNavItem.Catalog.route,
+            startDestination = AppRoute.Home,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(BottomNavItem.Catalog.route) {
-                CatalogScreenRoot(
+            composable<AppRoute.Home> {
+                HomeScreenRoot(
                     onProductClick = { handle ->
-                        navController.navigate(ProductDetail(handle = "your-product-handle"))
-                    }
+                        navController.navigate(AppRoute.ProductDetail(handle = handle))
+                    },
+                    navController = navController
                 )
             }
-            composable(BottomNavItem.Cart.route) {
+            composable<AppRoute.Category> {
+                CategoryScreenRoot()
+            }
+            composable<AppRoute.Wishlist> {
+                WishlistScreenRoot()
+            }
+            composable<AppRoute.Cart> {
                 val authRepository: AuthRepository = koinInject()
                 val isLoggedIn = authRepository.isLoggedIn()
 
                 if (!isLoggedIn) {
                     LoginPromptScreen(
                         onLoginClick = {
-                            navController.navigate(ROUTE_AUTH) {
+                            navController.navigate(AppRoute.Auth) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     inclusive = false
                                 }
@@ -120,14 +164,14 @@ fun MainScreen() {
                     )
                 } else {
                     CartScreenRoot(
-                        onCheckout = { navController.navigate(ROUTE_CHECKOUT) }
+                        onCheckout = { navController.navigate(AppRoute.Checkout) }
                     )
                 }
             }
-            composable(BottomNavItem.Profile.route) {
+            composable<AppRoute.Account> {
                 ProfileScreenRoot(
                     onNavigateToLogin = {
-                        navController.navigate(ROUTE_AUTH) {
+                        navController.navigate(AppRoute.Auth) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 inclusive = false
                             }
@@ -136,31 +180,30 @@ fun MainScreen() {
                     }
                 )
             }
-            composable(ROUTE_AUTH) {
+            composable<AppRoute.Auth> {
                 AuthScreenRoot(
                     onLoginSuccess = {
-                        navController.navigate(BottomNavItem.Profile.route) {
-                            popUpTo(ROUTE_AUTH) { inclusive = true }
+                        navController.navigate(BottomNavItem.ACCOUNT.route) {
+                            popUpTo(AppRoute.Auth.route) { inclusive = true }
                             launchSingleTop = true
                         }
                     }
                 )
             }
-            composable<ProductDetail> { backStackEntry ->
-                val route: ProductDetail = backStackEntry.toRoute()
+            composable<AppRoute.ProductDetail> { backStackEntry ->
+                val route: AppRoute.ProductDetail = backStackEntry.toRoute()
 
                 ProductDetailScreenRoot(
                     handle = route.handle,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-
-            composable(ROUTE_CHECKOUT) {
+            composable<AppRoute.Checkout> {
                 CheckoutScreenRoot(
                     onNavigateBack = { navController.popBackStack() },
                     onDone = {
-                        navController.navigate(BottomNavItem.Catalog.route) {
-                            popUpTo(ROUTE_CHECKOUT) { inclusive = true }
+                        navController.navigate(BottomNavItem.HOME.route) {
+                            popUpTo(AppRoute.Checkout) { inclusive = true }
                             launchSingleTop = true
                         }
                     }

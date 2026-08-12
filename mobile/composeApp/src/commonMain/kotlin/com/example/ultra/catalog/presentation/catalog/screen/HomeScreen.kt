@@ -21,15 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,14 +41,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.ultra.catalog.presentation.intent.CatalogAction
-import com.example.ultra.catalog.presentation.intent.CatalogState
-import com.example.ultra.catalog.presentation.viewmodel.CatalogViewModel
+import androidx.navigation.NavHostController
+import com.example.ultra.catalog.presentation.intent.HomeAction
+import com.example.ultra.catalog.presentation.intent.HomeState
+import com.example.ultra.catalog.presentation.viewmodel.HomeViewModel
 import com.example.ultra.core.data.util.formatTwoDecimals
+import com.example.ultra.core.domain.model.HomeSections
 import com.example.ultra.core.domain.model.Product
 import com.example.ultra.core.domain.model.Vendor
 import com.example.ultra.core.presentation.theme.AlturaBackground
@@ -70,25 +73,34 @@ private val sectionHeaderColors = listOf(
 )
 
 @Composable
-fun CatalogScreenRoot(
-	viewModel: CatalogViewModel = koinViewModel(),
+fun HomeScreenRoot(
+	viewModel: HomeViewModel = koinViewModel(),
 	onProductClick: (String) -> Unit = {},
-	onAddToCart: (Product) -> Unit = {}
+	onAddToCart: (Product) -> Unit = {},
+	navController: NavHostController
 ) {
 	val state by viewModel.state.collectAsStateWithLifecycle()
 
-	CatalogScreen(
+	HomeScreen(
 		state = state,
-		onAction = viewModel::onAction,
+		onAction = {action ->
+
+			when(action) {
+				is HomeAction.GoBack -> navController.popBackStack()
+				else -> Unit
+			}
+
+			viewModel.onAction(action)
+		},
 		onProductClick = onProductClick,
-		onAddToCart = { product -> viewModel.onAction(CatalogAction.AddToCart(product)) }
+		onAddToCart = { product -> viewModel.onAction(HomeAction.AddToCart(product)) }
 	)
 }
 
 @Composable
-fun CatalogScreen(
-	state: CatalogState,
-	onAction: (CatalogAction) -> Unit,
+fun HomeScreen(
+	state: HomeState,
+	onAction: (HomeAction) -> Unit,
 	onProductClick: (String) -> Unit = {},
 	onAddToCart: (Product) -> Unit = {},
 	modifier: Modifier = Modifier
@@ -99,16 +111,15 @@ fun CatalogScreen(
 			.background(AlturaBackground)
 	) {
 		// Top search bar (always visible)
-		CatalogTopBar(
+		HomeTopBar(
 			showBack = state.selectedVendor != null,
 			title = state.selectedVendor?.name,
-			onBack = { onAction(CatalogAction.ClearSelection) }
+			onBack = { onAction(HomeAction.ClearSelection) }
 		)
 
 		when {
 			state.isLoading -> {
 				Box(modifier = Modifier.fillMaxSize()) {
-					Text("IsLoading")
 					CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
 				}
 			}
@@ -128,9 +139,9 @@ fun CatalogScreen(
 							style = MaterialTheme.typography.bodyLarge
 						)
 						Button(onClick = {
-							onAction(CatalogAction.ClearError)
-							onAction(CatalogAction.LoadVendors)
-							onAction(CatalogAction.LoadAllProducts)
+							onAction(HomeAction.ClearError)
+							onAction(HomeAction.LoadVendors)
+							onAction(HomeAction.LoadAllProducts)
 						}) {
 							Text("Retry")
 						}
@@ -153,7 +164,7 @@ fun CatalogScreen(
 				HomeCatalogContent(
 					vendors = state.vendors,
 					products = state.products,
-					onVendorClick = { onAction(CatalogAction.SelectVendor(it)) },
+					onVendorClick = { onAction(HomeAction.SelectVendor(it)) },
 					onProductClick = onProductClick,
 					onAddToCart = onAddToCart
 				)
@@ -167,7 +178,7 @@ fun CatalogScreen(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun CatalogTopBar(
+private fun HomeTopBar(
 	showBack: Boolean,
 	title: String?,
 	onBack: () -> Unit
@@ -210,14 +221,18 @@ private fun CatalogTopBar(
 					tint = AlturaTextSecondary,
 					modifier = Modifier.size(18.dp)
 				)
-				Text(
-					text = "Search products...",
-					color = AlturaTextSecondary,
-					fontSize = 14.sp
+				TextField(
+					value = "",
+					onValueChange = {},
+					placeholder = { Text("Search on Altura...") },
+					colors = OutlinedTextFieldDefaults.colors(AlturaTextSecondary),
+					modifier = Modifier.weight(1f),
+//					color = AlturaTextSecondary,
+//					fontSize = 14.sp
 				)
 			}
 
-			IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+			/*IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
 				Icon(Icons.Outlined.CameraAlt, contentDescription = "Scan", tint = Color.Black)
 			}
 			IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
@@ -226,7 +241,7 @@ private fun CatalogTopBar(
 					contentDescription = "Notifications",
 					tint = Color.Black
 				)
-			}
+			}*/
 		}
 	}
 }
@@ -256,20 +271,20 @@ private fun HomeCatalogContent(
 			BannerCarousel()
 		}
 
-		// Vendor sections
-		vendors.forEachIndexed { index, vendor ->
-			val vendorProducts = productsByVendor[vendor.id].orEmpty()
-			if (vendorProducts.isNotEmpty()) {
-				item(key = "header_${vendor.id}") {
-					VendorSectionHeader(
-						vendor = vendor,
+		// Home sections
+		HomeSections.entries.forEachIndexed { index, sections ->
+			var sectionProducts = productsByVendor.values.toTypedArray()[index]
+			if (sectionProducts.isNotEmpty()) {
+				item(key = "header_${sections.id}") {
+					HomeSectionHeader(
+						sections.title,
 						color = sectionHeaderColors[index % sectionHeaderColors.size],
-						onClick = { onVendorClick(vendor.id) }
+						onClick = { onVendorClick(sections.id) }
 					)
 				}
-				item(key = "grid_${vendor.id}") {
+				item(key = "grid_${sections.id}") {
 					ProductGrid(
-						products = vendorProducts,
+						products = sectionProducts,
 						onProductClick = onProductClick,
 						onAddToCart = onAddToCart
 					)
@@ -329,14 +344,15 @@ private fun HotPicksBanner() {
 	Box(
 		modifier = Modifier
 			.fillMaxWidth()
-			.background(AlturaOrange)
+			.background(AlturaRed)
 			.padding(horizontal = 16.dp, vertical = 9.dp)
 	) {
 		Text(
-			text = "Hot Picks — Exclusive Deals & Discounts",
+			text = "Place your order: 09087676743, 010 3839283",
 			color = Color.White,
 			fontWeight = FontWeight.Bold,
-			fontSize = 13.sp
+			fontSize = 13.sp,
+			textAlign = TextAlign.Center
 		)
 	}
 }
@@ -395,8 +411,8 @@ private fun BannerCarousel() {
 }
 
 @Composable
-private fun VendorSectionHeader(
-	vendor: Vendor,
+private fun HomeSectionHeader(
+	title: String,
 	color: Color,
 	onClick: () -> Unit
 ) {
@@ -408,7 +424,7 @@ private fun VendorSectionHeader(
 			.padding(horizontal = 16.dp, vertical = 10.dp)
 	) {
 		Text(
-			text = vendor.name,
+			text = title,
 			color = Color.White,
 			fontWeight = FontWeight.Bold,
 			fontSize = 14.sp
@@ -486,7 +502,7 @@ private fun ProductCard(
 		Spacer(modifier = Modifier.height(2.dp))
 
 		Text(
-			text = "${formatTwoDecimals(product.price)} ${product.currency}",
+			text = "${product.price.formatTwoDecimals()} ${product.currency}",
 			fontSize = 11.sp,
 			fontWeight = FontWeight.Bold,
 			color = AlturaBlue

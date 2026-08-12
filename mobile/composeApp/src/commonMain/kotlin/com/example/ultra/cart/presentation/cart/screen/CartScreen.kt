@@ -40,6 +40,7 @@ import com.example.ultra.cart.presentation.intent.CartAction
 import com.example.ultra.cart.presentation.intent.CartEvent
 import com.example.ultra.cart.presentation.intent.CartState
 import com.example.ultra.cart.presentation.viewmodel.CartViewModel
+import com.example.ultra.core.data.util.formatTwoDecimals
 import com.example.ultra.core.domain.model.Cart
 import com.example.ultra.core.domain.model.CartItem
 import com.example.ultra.core.presentation.ObserveAsEvents
@@ -204,7 +205,7 @@ private fun CartItemCard(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "${cartItem.currency} ${"%.2f".format(cartItem.unitPrice)}",
+                        text = "${cartItem.currency} ${cartItem.unitPrice.formatTwoDecimals()}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -241,7 +242,7 @@ private fun CartItemCard(
                     }
                 }
                 Text(
-                    text = "${cartItem.currency} ${"%.2f".format(cartItem.subtotal)}",
+                    text = "${cartItem.currency} ${cartItem.subtotal.formatTwoDecimals()}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -274,7 +275,7 @@ private fun CartSummary(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Items (${cart.itemCount})")
-                Text("${cart.currency} ${"%.2f".format(cart.items.sumOf { it.subtotal })}")
+                Text("${cart.currency} ${cart.items.sumOf { it.subtotal }.formatTwoDecimals()}")
             }
             
             Row(
@@ -297,7 +298,7 @@ private fun CartSummary(
             ) {
                 Text("Total", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "${cart.currency} ${"%.2f".format(cart.items.sumOf { it.subtotal })}",
+                    text = "${cart.currency} ${cart.items.sumOf { it.subtotal }.formatTwoDecimals()}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )

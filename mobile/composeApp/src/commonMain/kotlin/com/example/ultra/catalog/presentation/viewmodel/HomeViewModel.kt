@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.ultra.cart.domain.usecase.AddToCartUseCase
 import com.example.ultra.catalog.domain.usecase.GetProductsUseCase
 import com.example.ultra.catalog.domain.usecase.GetVendorsUseCase
-import com.example.ultra.catalog.presentation.intent.CatalogAction
-import com.example.ultra.catalog.presentation.intent.CatalogEvent
-import com.example.ultra.catalog.presentation.intent.CatalogState
+import com.example.ultra.catalog.presentation.intent.HomeAction
+import com.example.ultra.catalog.presentation.intent.HomeEvent
+import com.example.ultra.catalog.presentation.intent.HomeState
 import com.example.ultra.core.domain.model.Vendor
 import com.example.ultra.core.domain.util.onFailure
 import com.example.ultra.core.domain.util.onSuccess
@@ -20,32 +20,33 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class CatalogViewModel(
+class HomeViewModel(
 	private val getVendorsUseCase: GetVendorsUseCase,
 	private val getProductsUseCase: GetProductsUseCase,
 	private val addToCartUseCase: AddToCartUseCase
 ) : ViewModel() {
 
-	private val _state = MutableStateFlow(CatalogState())
-	val state: StateFlow<CatalogState> = _state.asStateFlow()
+	private val _state = MutableStateFlow(HomeState())
+	val state: StateFlow<HomeState> = _state.asStateFlow()
 
-	private val _events = Channel<CatalogEvent>(Channel.BUFFERED)
+	private val _events = Channel<HomeEvent>(Channel.BUFFERED)
 	val events = _events.receiveAsFlow()
 
 	init {
-		onAction(CatalogAction.LoadVendors)
-		onAction(CatalogAction.LoadAllProducts)
+		onAction(HomeAction.LoadVendors)
+		onAction(HomeAction.LoadAllProducts)
 	}
 
-	fun onAction(action: CatalogAction) {
+	fun onAction(action: HomeAction) {
 		println("kolade $action")
 		when (action) {
-			is CatalogAction.LoadVendors -> loadVendors()
-			is CatalogAction.LoadAllProducts -> loadAllProducts()
-			is CatalogAction.SelectVendor -> selectVendor(action.vendorId)
-			is CatalogAction.ClearSelection -> clearSelection()
-			is CatalogAction.ClearError -> _state.update { it.copy(error = null) }
-			is CatalogAction.AddToCart -> addToCart(action.product)
+			is HomeAction.LoadVendors -> loadVendors()
+			is HomeAction.LoadAllProducts -> loadAllProducts()
+			is HomeAction.SelectVendor -> selectVendor(action.vendorId)
+			is HomeAction.ClearSelection -> clearSelection()
+			is HomeAction.ClearError -> _state.update { it.copy(error = null) }
+			is HomeAction.AddToCart -> addToCart(action.product)
+			else -> {}
 		}
 	}
 
@@ -64,7 +65,7 @@ class CatalogViewModel(
 				}
 				.onFailure { error ->
 					_state.update { it.copy(isLoading = false, error = error.toUiText()) }
-					_events.send(CatalogEvent.ShowError(error.toUiText()))
+					_events.send(HomeEvent.ShowError(error.toUiText()))
 				}
 		}
 	}
@@ -89,7 +90,7 @@ class CatalogViewModel(
 				}
 				.onFailure { error ->
 					_state.update { it.copy(isLoading = false, error = error.toUiText()) }
-					_events.send(CatalogEvent.ShowError(error.toUiText()))
+					_events.send(HomeEvent.ShowError(error.toUiText()))
 				}
 		}
 	}
@@ -110,7 +111,7 @@ class CatalogViewModel(
 				}
 				.onFailure { error ->
 					_state.update { it.copy(isLoading = false, error = error.toUiText()) }
-					_events.send(CatalogEvent.ShowError(error.toUiText()))
+					_events.send(HomeEvent.ShowError(error.toUiText()))
 				}
 		}
 	}
@@ -125,14 +126,14 @@ class CatalogViewModel(
 			addToCartUseCase(product)
 				.onSuccess {
 					_events.send(
-						CatalogEvent.ShowError(
+						HomeEvent.ShowError(
 							com.example.ultra.core.presentation.UiText.DynamicString(
 								"Added to cart"
 							)
 						)
 					)
 				}
-				.onFailure { error -> _events.send(CatalogEvent.ShowError(error.toUiText())) }
+				.onFailure { error -> _events.send(HomeEvent.ShowError(error.toUiText())) }
 		}
 	}
 }

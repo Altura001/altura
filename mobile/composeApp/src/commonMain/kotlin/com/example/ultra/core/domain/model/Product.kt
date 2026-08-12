@@ -9,7 +9,7 @@ data class Product(
     val name: String,
     val description: String,
     val price: Double,
-    val currency: String = "USD",
+    val currency: String = "NGN",
     val imageUrl: String? = null,
     val thumbnailUrl: String? = null,
     val category: String? = null,

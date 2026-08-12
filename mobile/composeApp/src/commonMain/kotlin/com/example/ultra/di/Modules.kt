@@ -18,8 +18,9 @@ import com.example.ultra.cart.presentation.viewmodel.CartViewModel
 import com.example.ultra.catalog.data.repository.AlturaCatalogRepository
 import com.example.ultra.catalog.domain.usecase.GetProductsUseCase
 import com.example.ultra.catalog.domain.usecase.GetVendorsUseCase
-import com.example.ultra.catalog.presentation.viewmodel.CatalogViewModel
+import com.example.ultra.catalog.presentation.viewmodel.HomeViewModel
 import com.example.ultra.catalog.presentation.productdetail.ProductDetailViewModel
+import com.example.ultra.category.viewmodel.CategoryViewModel
 import com.example.ultra.checkout.data.repository.AlturaOrderRepository
 import com.example.ultra.checkout.data.repository.AlturaPaymentRepository
 import com.example.ultra.checkout.domain.usecase.CancelOrderUseCase
@@ -36,16 +37,7 @@ import com.example.ultra.core.domain.repository.OrderRepository
 import com.example.ultra.core.domain.repository.PaymentRepository
 import com.example.ultra.core.domain.util.getPlatformBackendUrl
 import com.example.ultra.profile.presentation.viewmodel.ProfileViewModel
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
+import com.example.ultra.wishlist.viewmodel.WishlistViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -79,13 +71,21 @@ val catalogDataModule = module {
     singleOf(::AlturaCatalogRepository) bind CatalogRepository::class
 }
 
+val categoryPresentationModule = module {
+    singleOf(::CategoryViewModel)
+}
+
+val wishlistPresentationModule = module {
+    singleOf(::WishlistViewModel)
+}
+
 val catalogDomainModule = module {
     singleOf(::GetVendorsUseCase)
     singleOf(::GetProductsUseCase)
 }
 
 val catalogPresentationModule = module {
-    viewModelOf(::CatalogViewModel)
+    viewModelOf(::HomeViewModel)
 }
 
 val cartDataModule = module {
@@ -139,6 +139,8 @@ val sharedModule: Module = module {
         catalogDataModule,
         catalogDomainModule,
         catalogPresentationModule,
+        categoryPresentationModule,
+        wishlistPresentationModule,
         cartDataModule,
         cartDomainModule,
         cartPresentationModule,
