@@ -31,6 +31,16 @@ kotlin {
 		binaries.executable()
 	}
 
+	jvm("desktop")
+
+	sourceSets {
+		val desktopMain by getting {
+			dependencies {
+				implementation(compose.desktop.currentOs)
+			}
+		}
+	}
+
 	@OptIn(ExperimentalWasmDsl::class)
 	wasmJs {
 		browser()
@@ -49,6 +59,7 @@ kotlin {
 			implementation(libs.compose.material3)
 			implementation(libs.compose.material.icons.extended)
 			implementation(libs.compose.ui)
+			implementation(libs.compose.uiTooling.preview)
 			implementation(libs.androidx.lifecycle.viewmodel.compose)
 			implementation(libs.androidx.lifecycle.runtime.compose)
 

@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ultra.core.data.util.formatTwoDecimals
 import com.example.ultra.core.presentation.ObserveAsEvents
 import com.example.ultra.core.presentation.theme.AlturaBackground
 import com.example.ultra.core.presentation.theme.AlturaBlue
@@ -187,7 +188,7 @@ fun ProductDetailScreen(
 
                             // Price
                             Text(
-                                text = "${"%.2f".format(product.price)} ${product.currency}",
+                                text = "${product.price.formatTwoDecimals()} ${product.currency}",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AlturaBlue
@@ -235,7 +236,7 @@ fun ProductDetailScreen(
                                             color = Color.Black
                                         )
                                         Text(
-                                            text = "${"%.2f".format(variant.price)} ${variant.currency}",
+                                            text = "${variant.price.formatTwoDecimals()} ${variant.currency}",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = AlturaOrange
