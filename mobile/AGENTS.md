@@ -4,7 +4,7 @@
 Multi-vendor e-commerce app built with Compose Multiplatform. Users can browse vendors and products, add items to cart, and checkout.
 
 ## Tech Stack
-- **UI**: Compose Multiplatform (Android, iOS, Web)
+- **UI**: Compose Multiplatform (Android, iOS, Desktop, Web)
 - **DI**: Koin 4.0
 - **Networking**: Ktor
 - **Serialization**: Kotlinx Serialization
@@ -12,6 +12,20 @@ Multi-vendor e-commerce app built with Compose Multiplatform. Users can browse v
 - **Backend**: NodeJS-Medusa (abstracted with mock data)
 
 ## Architecture
+
+### Module Structure
+The project uses the new KMP default structure (AGP 9 requires the Android app entry point in its own module):
+```
+shared/       # KMP library: commonMain + androidMain/iosMain/jvmMain/jsMain/wasmJsMain (all feature code)
+androidApp/   # Android application entry point (MainActivity, manifest, app res)
+desktopApp/   # Desktop (JVM) application entry point (main(), compose.desktop config)
+webApp/       # Web entry point (js + wasmJs main() and resources)
+iosApp/       # Xcode project consuming the `Shared` framework from :shared
+```
+All shared feature code lives under `shared/src/commonMain/kotlin/com/example/ultra/`.
+Only entry points and platform actuals live in `shared/src/{target}Main`. App-level
+entry points are in `androidApp`/`desktopApp`/`webApp`. Desktop hot reload:
+`./gradlew :desktopApp:hotRun --auto`.
 
 ### Feature Package Structure
 Each feature is a standalone package directly under `com.example.ultra/`:

@@ -1,0 +1,28 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
+plugins {
+	alias(libs.plugins.kotlinJvm)
+	alias(libs.plugins.composeMultiplatform)
+	alias(libs.plugins.composeCompiler)
+}
+
+dependencies {
+	implementation(project(":shared"))
+
+	implementation(compose.desktop.currentOs)
+	implementation(libs.kotlinx.coroutinesSwing)
+
+	implementation(libs.compose.uiTooling.preview)
+}
+
+compose.desktop {
+	application {
+		mainClass = "com.example.ultra.MainKt"
+
+		nativeDistributions {
+			targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+			packageName = "com.example.ultra"
+			packageVersion = "1.0.0"
+		}
+	}
+}
