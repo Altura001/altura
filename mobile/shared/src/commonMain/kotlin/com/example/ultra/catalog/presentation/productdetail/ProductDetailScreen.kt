@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -160,17 +161,25 @@ fun ProductDetailScreen(
                             .verticalScroll(rememberScrollState())
                     ) {
                         // Product image
-                        KamelImage(
-                            resource = asyncPainterResource(
-                                data = product.thumbnailUrl ?: product.imageUrl ?: ""
-                            ),
+                        KamelImage({
+                            asyncPainterResource(
+                                                        data = product.thumbnailUrl ?: product.imageUrl ?: ""
+                                                    )
+                        },
                             contentDescription = product.name,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(0.dp))
                                 .background(AlturaBackground),
-                            contentScale = ContentScale.Crop
+                            alignment = Alignment.Center,
+                            contentScale = ContentScale.Crop,
+                            alpha = DefaultAlpha,
+                            colorFilter = null,
+                            onLoading = null,
+                            onFailure = null,
+                            contentAlignment = Alignment.Center,
+                            animationSpec = null
                         )
 
                         Column(

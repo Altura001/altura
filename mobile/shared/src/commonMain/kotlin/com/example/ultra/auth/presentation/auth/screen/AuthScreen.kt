@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Email
@@ -114,7 +115,7 @@ fun AuthScreen(
     ) {
         IconButton(onClick = {}) {
             Icon(
-                imageVector = Icons.Outlined.ArrowBack,
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "Back",
                 tint = Color.Black
             )
