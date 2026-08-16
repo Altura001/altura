@@ -23,14 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -44,7 +40,6 @@ import com.example.ultra.checkout.presentation.intent.CheckoutState
 import com.example.ultra.checkout.presentation.intent.CheckoutStep
 import com.example.ultra.checkout.presentation.viewmodel.CheckoutViewModel
 import com.example.ultra.core.presentation.ObserveAsEvents
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -54,16 +49,12 @@ fun CheckoutScreenRoot(
     viewModel: CheckoutViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             is CheckoutEvent.OpenUrl -> uriHandler.openUri(event.url)
-            is CheckoutEvent.ShowError -> scope.launch {
-                snackbarHostState.showSnackbar(event.message.asString())
-            }
+            is CheckoutEvent.ShowError -> {}
             is CheckoutEvent.Done -> onDone()
         }
     }
@@ -72,8 +63,7 @@ fun CheckoutScreenRoot(
         state = state,
         onAction = viewModel::onAction,
         onNavigateBack = onNavigateBack,
-        onDone = onDone,
-        snackbarHostState = snackbarHostState
+        onDone = onDone
     )
 }
 
@@ -83,8 +73,7 @@ fun CheckoutScreen(
     state: CheckoutState,
     onAction: (CheckoutAction) -> Unit,
     onNavigateBack: () -> Unit,
-    onDone: () -> Unit,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
+    onDone: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -96,8 +85,7 @@ fun CheckoutScreen(
                     }
                 }
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (state.step) {

@@ -1,6 +1,5 @@
 package com.example.ultra.navigation.presentation
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,7 +12,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Button
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -24,8 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -35,15 +37,19 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.ultra.auth.presentation.auth.screen.AuthScreenRoot
 import com.example.ultra.cart.presentation.cart.screen.CartScreenRoot
-import com.example.ultra.catalog.presentation.catalog.screen.HomeScreenRoot
-import com.example.ultra.catalog.presentation.productdetail.ProductDetailScreenRoot
+import com.example.ultra.core.domain.repository.CartRepository
+import com.example.ultra.core.presentation.notification.NotificationHost
+import com.example.ultra.core.presentation.notification.NotificationManager
+import com.example.ultra.home.presentation.home.screen.HomeScreenRoot
+import com.example.ultra.home.presentation.productdetail.ProductDetailScreenRoot
 import com.example.ultra.category.presentation.category.screen.CategoryScreenRoot
 import com.example.ultra.checkout.presentation.screen.CheckoutScreenRoot
-import com.example.ultra.core.domain.repository.AuthRepository
 import com.example.ultra.profile.presentation.profile.screen.ProfileScreenRoot
-import com.example.ultra.wishlist.presentation.category.screen.WishlistScreenRoot
+import com.example.ultra.wishlist.presentation.wishlist.screen.WishlistScreenRoot
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.layout.Box
 
 enum class BottomNavItem(
     val title: String,
@@ -104,22 +110,56 @@ fun MainScreen() {
 
     val isOnAuthScreen = currentDestination?.route == AppRoute.Auth.route
 
+    val cartRepository: CartRepository = koinInject()
+    val cart by cartRepository.observeCart().collectAsState(initial = com.example.ultra.core.domain.model.Cart())
+    val cartItemCount = cart.itemCount
+
+    val notificationManager: NotificationManager = koinInject()
+    val currentNotification by notificationManager.notification.collectAsState()
+
     Scaffold(
+        snackbarHost = {
+            Box(contentAlignment = Alignment.TopCenter) {
+                NotificationHost(
+                    notification = currentNotification,
+                    onDismiss = { notificationManager.dismiss() }
+                )
+            }
+        },
         bottomBar = {
             if (!isOnAuthScreen) {
                 NavigationBar {
                     BottomNavItem.entries.forEach { item ->
+                        val badgeCount = if (item == BottomNavItem.CART) cartItemCount else 0
                         NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.title) },
+                            icon = {
+                                if (badgeCount > 0) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge(
+                                                containerColor = androidx.compose.ui.graphics.Color(0xFFFF5A00),
+                                                contentColor = androidx.compose.ui.graphics.Color.White
+                                            ) {
+                                                Text(badgeCount.toString(), fontSize = 10.sp)
+                                            }
+                                        }
+                                    ) {
+                                        Icon(item.icon, contentDescription = item.title)
+                                    }
+                                } else {
+                                    Icon(item.icon, contentDescription = item.title)
+                                }
+                            },
                             label = { Text(item.title) },
                             selected = currentDestination?.hierarchy?.any { it.route == item.route.route } == true,
                             onClick = {
                                 navController.navigate(item.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                                        saveState = item != BottomNavItem.HOME
+                                        inclusive = item == BottomNavItem.HOME
                                     }
                                     launchSingleTop = true
-                                    restoreState = true
+                                    restoreState = item != BottomNavItem.HOME
                                 }
                             }
                         )
@@ -145,28 +185,14 @@ fun MainScreen() {
                 CategoryScreenRoot()
             }
             composable<AppRoute.Wishlist> {
-                WishlistScreenRoot()
+                WishlistScreenRoot(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable<AppRoute.Cart> {
-                val authRepository: AuthRepository = koinInject()
-                val isLoggedIn = authRepository.isLoggedIn()
-
-                if (!isLoggedIn) {
-                    LoginPromptScreen(
-                        onLoginClick = {
-                            navController.navigate(AppRoute.Auth) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    inclusive = false
-                                }
-                                launchSingleTop = true
-                            }
-                        }
-                    )
-                } else {
-                    CartScreenRoot(
-                        onCheckout = { navController.navigate(AppRoute.Checkout) }
-                    )
-                }
+                CartScreenRoot(
+                    onCheckout = { navController.navigate(AppRoute.Checkout) }
+                )
             }
             composable<AppRoute.Account> {
                 ProfileScreenRoot(
@@ -210,30 +236,5 @@ fun MainScreen() {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun LoginPromptScreen(onLoginClick: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            Icons.Default.ShoppingCart,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Sign in to view your cart", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Please sign in to add items to your cart and check out",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onLoginClick) { Text("Sign In") }
     }
 }

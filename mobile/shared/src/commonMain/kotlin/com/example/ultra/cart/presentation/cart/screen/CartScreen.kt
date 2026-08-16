@@ -15,8 +15,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,17 +28,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ultra.cart.presentation.intent.CartAction
-import com.example.ultra.cart.presentation.intent.CartEvent
 import com.example.ultra.cart.presentation.intent.CartState
 import com.example.ultra.cart.presentation.viewmodel.CartViewModel
-import com.example.ultra.core.presentation.ObserveAsEvents
-import com.example.ultra.core.presentation.theme.*
-import kotlinx.coroutines.launch
-import org.koin.compose.viewmodel.koinViewModel
-import androidx.compose.ui.tooling.preview.Preview
 import com.example.ultra.core.domain.model.CartItem
-import com.example.ultra.core.domain.model.Product
+import com.example.ultra.core.presentation.theme.*
+import org.koin.compose.viewmodel.koinViewModel
 import com.example.ultra.core.domain.model.Cart
+import com.example.ultra.core.domain.model.Product
 
 @Composable
 fun CartScreenRoot(
@@ -48,22 +42,11 @@ fun CartScreenRoot(
     onCheckout: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
-    ObserveAsEvents(viewModel.events) { event ->
-        when (event) {
-            is CartEvent.ShowError -> scope.launch {
-                snackbarHostState.showSnackbar(event.message.asString())
-            }
-        }
-    }
 
     CartScreen(
         state = state,
         onAction = viewModel::onAction,
-        onCheckout = onCheckout,
-        snackbarHostState = snackbarHostState
+        onCheckout = onCheckout
     )
 }
 
@@ -73,9 +56,12 @@ fun CartScreen(
     state: CartState,
     onAction: (CartAction) -> Unit,
     onCheckout: () -> Unit = {},
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     modifier: Modifier = Modifier
 ) {
+    val cart = state.cart
+    val itemCount = cart?.itemCount ?: 0
+    val cartTotal = cart?.total ?: 0.0
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -103,47 +89,91 @@ fun CartScreen(
         bottomBar = {
             Column(modifier = Modifier.background(Color.White)) {
                 CheckoutFooter(
-                    totalAmount = 280129.0,
+                    totalAmount = cartTotal,
                     onCheckout = onCheckout
                 )
-                BottomNavigationBar()
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color.White)
-        ) {
-            item {
-                SubtotalSection(amount = 290172.0)
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
-
-            item {
-                Text(
-                    text = "Cart (3)",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 15.sp
-                )
+        } else if (cart == null || cart.isEmpty) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.ShoppingCart,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Your cart is empty",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Browse products and add items to your cart",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                }
             }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(Color.White)
+            ) {
+                item {
+                    SubtotalSection(amount = cart.subtotal)
+                }
 
-            items(3) { index ->
-                CartItemRow(
-                    quantity = if (index == 0) 2 else 5,
-                    onRemove = { /* Handle remove */ },
-                    onIncrement = { /* Handle increment */ },
-                    onDecrement = { /* Handle decrement */ }
-                )
-                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), thickness = 0.5.dp)
-            }
+                item {
+                    Text(
+                        text = "Cart ($itemCount)",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 15.sp
+                    )
+                }
 
-            item {
-                CustomersAlsoViewedSection()
+                items(cart.items, key = { it.id }) { item ->
+                    CartItemRow(
+                        item = item,
+                        onRemove = { onAction(CartAction.RemoveItem(item.id)) },
+                        onIncrement = { onAction(CartAction.UpdateQuantity(item.id, item.quantity + 1)) },
+                        onDecrement = {
+                            if (item.quantity > 1) {
+                                onAction(CartAction.UpdateQuantity(item.id, item.quantity - 1))
+                            } else {
+                                onAction(CartAction.RemoveItem(item.id))
+                            }
+                        }
+                    )
+                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), thickness = 0.5.dp)
+                }
+
+                item {
+                    CustomersAlsoViewedSection()
+                }
             }
         }
     }
@@ -175,7 +205,7 @@ private fun SubtotalSection(amount: Double) {
 
 @Composable
 private fun CartItemRow(
-    quantity: Int,
+    item: CartItem,
     onRemove: () -> Unit,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit
@@ -194,7 +224,7 @@ private fun CartItemRow(
                     .size(100.dp)
                     .background(Color(0xFFF2F3F4), RoundedCornerShape(4.dp))
             ) {
-                // Placeholder for product image
+                // Product image placeholder
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -205,52 +235,59 @@ private fun CartItemRow(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "COOKWARE POT COMBINATION COVER (DLB2114)",
+                    text = item.title.ifBlank { item.product?.name ?: "Product" },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (item.variantId.isNotBlank()) {
+                    Text(
+                        text = "Variation: ${item.variantId.take(20)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
                 Text(
-                    text = "Variation ... POT SET",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
-                    fontSize = 12.sp
-                )
-                Text(
-                    text = "N 191, 250",
+                    text = "N ${formatPrice(item.unitPrice)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     modifier = Modifier.padding(top = 4.dp)
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "N 250, 000",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray,
-                        textDecoration = TextDecoration.LineThrough,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        color = Color(0xFFFEF9E7),
-                        shape = RoundedCornerShape(2.dp)
-                    ) {
+                if (item.product?.oldPrice != null && item.product.oldPrice > item.unitPrice) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "-24%",
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFF1C40F),
-                            fontSize = 10.sp
+                            text = "N ${formatPrice(item.product.oldPrice)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray,
+                            textDecoration = TextDecoration.LineThrough,
+                            fontSize = 12.sp
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        val discount = ((1 - item.unitPrice / item.product.oldPrice) * 100).toInt()
+                        if (discount > 0) {
+                            Surface(
+                                color = Color(0xFFFEF9E7),
+                                shape = RoundedCornerShape(2.dp)
+                            ) {
+                                Text(
+                                    text = "-$discount%",
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFF1C40F),
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
                     }
                 }
                 Text(
-                    text = "Few units left",
+                    text = if (item.product?.inStock != false) "In Stock" else "Out of Stock",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.Black,
+                    color = if (item.product?.inStock != false) Color.Black else Color.Red,
                     fontSize = 11.sp
                 )
             }
@@ -286,7 +323,7 @@ private fun CartItemRow(
                 }
                 
                 Text(
-                    text = quantity.toString(),
+                    text = item.quantity.toString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp
@@ -338,7 +375,8 @@ private fun CheckoutFooter(
                 .weight(1f)
                 .height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AlturaCyan),
-            shape = RoundedCornerShape(4.dp)
+            shape = RoundedCornerShape(4.dp),
+            enabled = totalAmount > 0
         ) {
             Text(
                 text = "Checkout (N ${formatPrice(totalAmount)})",
@@ -421,49 +459,6 @@ private fun ProductSmallCard() {
     }
 }
 
-@Composable
-private fun BottomNavigationBar() {
-    NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 8.dp
-    ) {
-        BottomNavItem("Home", Icons.Default.Home, false)
-        BottomNavItem("Category", Icons.AutoMirrored.Filled.List, false)
-        BottomNavItem("Wishlist", Icons.Default.FavoriteBorder, false)
-        BottomNavItem("Cart", Icons.Default.ShoppingCart, true)
-        BottomNavItem("Account", Icons.Default.PersonOutline, false)
-    }
-}
-
-@Composable
-private fun RowScope.BottomNavItem(
-    label: String,
-    icon: ImageVector,
-    selected: Boolean
-) {
-    NavigationBarItem(
-        icon = {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = if (selected) Color(0xFFFE5A00) else Color.Gray
-            )
-        },
-        label = {
-            Text(
-                text = label,
-                color = if (selected) Color(0xFFFE5A00) else Color.Gray,
-                fontSize = 10.sp
-            )
-        },
-        selected = selected,
-        onClick = { },
-        colors = NavigationBarItemDefaults.colors(
-            indicatorColor = Color.Transparent
-        )
-    )
-}
-
 private fun formatPrice(price: Double): String {
     val s = price.toInt().toString()
     return if (s.length > 3) {
@@ -475,7 +470,6 @@ private fun formatPrice(price: Double): String {
     }
 }
 
-@Preview
 @Composable
 fun CartScreenPreview() {
     UltraTheme {
@@ -485,4 +479,3 @@ fun CartScreenPreview() {
         )
     }
 }
-

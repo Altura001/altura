@@ -8,18 +8,19 @@ import com.example.ultra.auth.domain.usecase.SignupCustomerUseCase
 import com.example.ultra.auth.domain.usecase.SignupVendorUseCase
 import com.example.ultra.auth.domain.usecase.SocialAuthUseCase
 import com.example.ultra.auth.presentation.viewmodel.AuthViewModel
-import com.example.ultra.cart.data.repository.AlturaCartRepository
+import com.example.ultra.cart.data.repository.DefaultCartRepository
 import com.example.ultra.cart.domain.usecase.AddToCartUseCase
 import com.example.ultra.cart.domain.usecase.ClearCartUseCase
 import com.example.ultra.cart.domain.usecase.GetCartUseCase
 import com.example.ultra.cart.domain.usecase.RemoveFromCartUseCase
 import com.example.ultra.cart.domain.usecase.UpdateCartItemUseCase
 import com.example.ultra.cart.presentation.viewmodel.CartViewModel
-import com.example.ultra.catalog.data.repository.AlturaCatalogRepository
-import com.example.ultra.catalog.domain.usecase.GetProductsUseCase
-import com.example.ultra.catalog.domain.usecase.GetVendorsUseCase
-import com.example.ultra.catalog.presentation.viewmodel.HomeViewModel
-import com.example.ultra.catalog.presentation.productdetail.ProductDetailViewModel
+import com.example.ultra.home.data.repository.AlturaCatalogRepository
+import com.example.ultra.home.domain.usecase.GetProductsUseCase
+import com.example.ultra.home.domain.usecase.GetVendorsUseCase
+import com.example.ultra.home.domain.usecase.SearchProductsUseCase
+import com.example.ultra.home.presentation.viewmodel.HomeViewModel
+import com.example.ultra.home.presentation.productdetail.ProductDetailViewModel
 import com.example.ultra.category.viewmodel.CategoryViewModel
 import com.example.ultra.checkout.data.repository.AlturaOrderRepository
 import com.example.ultra.checkout.data.repository.AlturaPaymentRepository
@@ -35,8 +36,11 @@ import com.example.ultra.core.domain.repository.CartRepository
 import com.example.ultra.core.domain.repository.CatalogRepository
 import com.example.ultra.core.domain.repository.OrderRepository
 import com.example.ultra.core.domain.repository.PaymentRepository
+import com.example.ultra.core.domain.repository.WishlistRepository
 import com.example.ultra.core.domain.util.getPlatformBackendUrl
+import com.example.ultra.core.presentation.notification.NotificationManager
 import com.example.ultra.profile.presentation.viewmodel.ProfileViewModel
+import com.example.ultra.wishlist.data.repository.DefaultWishlistRepository
 import com.example.ultra.wishlist.viewmodel.WishlistViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
@@ -48,6 +52,7 @@ expect val platformModule: Module
 
 val coreModule = module {
     single { AlturaApiService(get(), getPlatformBackendUrl(), get()) }
+    single { NotificationManager() }
 }
 
 val authDataModule = module {
@@ -75,13 +80,18 @@ val categoryPresentationModule = module {
     singleOf(::CategoryViewModel)
 }
 
+val wishlistDataModule = module {
+    singleOf(::DefaultWishlistRepository) bind WishlistRepository::class
+}
+
 val wishlistPresentationModule = module {
-    singleOf(::WishlistViewModel)
+    viewModelOf(::WishlistViewModel)
 }
 
 val catalogDomainModule = module {
     singleOf(::GetVendorsUseCase)
     singleOf(::GetProductsUseCase)
+    singleOf(::SearchProductsUseCase)
 }
 
 val catalogPresentationModule = module {
@@ -89,7 +99,7 @@ val catalogPresentationModule = module {
 }
 
 val cartDataModule = module {
-    singleOf(::AlturaCartRepository) bind CartRepository::class
+    singleOf(::DefaultCartRepository) bind CartRepository::class
 }
 
 val cartDomainModule = module {
@@ -140,6 +150,7 @@ val sharedModule: Module = module {
         catalogDomainModule,
         catalogPresentationModule,
         categoryPresentationModule,
+        wishlistDataModule,
         wishlistPresentationModule,
         cartDataModule,
         cartDomainModule,

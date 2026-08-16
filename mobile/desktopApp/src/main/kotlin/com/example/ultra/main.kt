@@ -12,6 +12,7 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "Ultra",
         state = rememberWindowState(size = DpSize(420.dp, 800.dp)),
+        alwaysOnTop = true
     ) {
         App()
     }

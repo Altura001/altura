@@ -7,16 +7,16 @@ import com.example.ultra.cart.domain.usecase.GetCartUseCase
 import com.example.ultra.cart.domain.usecase.RemoveFromCartUseCase
 import com.example.ultra.cart.domain.usecase.UpdateCartItemUseCase
 import com.example.ultra.cart.presentation.intent.CartAction
-import com.example.ultra.cart.presentation.intent.CartEvent
 import com.example.ultra.cart.presentation.intent.CartState
+import com.example.ultra.core.domain.repository.CartRepository
 import com.example.ultra.core.domain.util.onFailure
 import com.example.ultra.core.domain.util.onSuccess
+import com.example.ultra.core.presentation.notification.NotificationManager
 import com.example.ultra.core.presentation.toUiText
-import kotlinx.coroutines.channels.Channel
+import com.example.ultra.core.presentation.toUiText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,16 +24,20 @@ class CartViewModel(
     private val getCartUseCase: GetCartUseCase,
     private val updateCartItemUseCase: UpdateCartItemUseCase,
     private val removeFromCartUseCase: RemoveFromCartUseCase,
-    private val clearCartUseCase: ClearCartUseCase
+    private val clearCartUseCase: ClearCartUseCase,
+    private val notificationManager: NotificationManager,
+    cartRepository: CartRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CartState())
     val state: StateFlow<CartState> = _state.asStateFlow()
 
-    private val _events = Channel<CartEvent>(Channel.BUFFERED)
-    val events = _events.receiveAsFlow()
-
     init {
+        viewModelScope.launch {
+            cartRepository.observeCart().collect { cart ->
+                _state.update { it.copy(cart = cart) }
+            }
+        }
         onAction(CartAction.LoadCart)
     }
 
@@ -53,44 +57,29 @@ class CartViewModel(
                 .onSuccess { cart -> _state.update { it.copy(isLoading = false, cart = cart) } }
                 .onFailure { error ->
                     _state.update { it.copy(isLoading = false, error = error.toUiText()) }
-                    _events.send(CartEvent.ShowError(error.toUiText()))
+                    notificationManager.error(error.toUiText().asString())
                 }
         }
     }
 
     private fun updateQuantity(cartItemId: String, quantity: Int) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
             updateCartItemUseCase(cartItemId, quantity)
-                .onSuccess { cart -> _state.update { it.copy(isLoading = false, cart = cart) } }
-                .onFailure { error ->
-                    _state.update { it.copy(isLoading = false) }
-                    _events.send(CartEvent.ShowError(error.toUiText()))
-                }
+                .onFailure { error -> notificationManager.error(error.toUiText().asString()) }
         }
     }
 
     private fun removeItem(cartItemId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
             removeFromCartUseCase(cartItemId)
-                .onSuccess { cart -> _state.update { it.copy(isLoading = false, cart = cart) } }
-                .onFailure { error ->
-                    _state.update { it.copy(isLoading = false) }
-                    _events.send(CartEvent.ShowError(error.toUiText()))
-                }
+                .onFailure { error -> notificationManager.error(error.toUiText().asString()) }
         }
     }
 
     private fun clearCart() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
             clearCartUseCase()
-                .onSuccess { cart -> _state.update { it.copy(isLoading = false, cart = cart) } }
-                .onFailure { error ->
-                    _state.update { it.copy(isLoading = false) }
-                    _events.send(CartEvent.ShowError(error.toUiText()))
-                }
+                .onFailure { error -> notificationManager.error(error.toUiText().asString()) }
         }
     }
 }

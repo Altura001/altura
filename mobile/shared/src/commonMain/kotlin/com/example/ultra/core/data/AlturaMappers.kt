@@ -131,3 +131,15 @@ fun PaymentInitiationDto.toModel(): PaymentInitiation = PaymentInitiation(
     amountSubunits = amountSubunits,
     currency = currency
 )
+
+fun WishlistItemResponseDto.toProduct(): Product = Product(
+    id = productId,
+    vendorId = "",
+    name = productName,
+    description = "",
+    price = price,
+    currency = currency,
+    imageUrl = thumbnailUrl,
+    thumbnailUrl = thumbnailUrl,
+    inStock = inStock
+)

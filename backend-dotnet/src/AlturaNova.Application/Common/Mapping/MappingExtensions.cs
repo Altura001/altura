@@ -3,6 +3,7 @@ using AlturaNova.Application.DTOs.Cart;
 using AlturaNova.Application.DTOs.Catalog;
 using AlturaNova.Application.DTOs.Orders;
 using AlturaNova.Application.DTOs.Vendor;
+using AlturaNova.Application.DTOs.Wishlist;
 using AlturaNova.Domain.Entities;
 
 namespace AlturaNova.Application.Common.Mapping;
@@ -125,4 +126,19 @@ public static class MappingExtensions
         o.ShippingAddress.ToResponse(),
         o.Items.Select(i => i.ToResponse()).ToList(),
         o.CreatedAt);
+
+    public static WishlistItemResponse ToResponse(this WishlistItem i) => new(
+        i.Id,
+        i.ProductId,
+        i.Product?.Name ?? string.Empty,
+        i.Product?.ThumbnailUrl,
+        i.Product?.Variants.OrderBy(v => v.Price).FirstOrDefault()?.Price ?? 0m,
+        i.Product?.Currency ?? "EUR",
+        i.Product?.Variants.Any(v => v.InventoryQuantity > 0) ?? false,
+        i.CreatedAt);
+
+    public static WishlistResponse ToResponse(this List<WishlistItem> items, Guid userId) => new(
+        userId,
+        items.OrderByDescending(i => i.CreatedAt).Select(i => i.ToResponse()).ToList(),
+        items.Count);
 }

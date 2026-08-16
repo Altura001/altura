@@ -20,7 +20,11 @@ kotlin {
 		}
 	}
 
-	jvm ()
+	jvm {
+		compilerOptions {
+			jvmTarget.set(JvmTarget.JVM_21)
+		}
+	}
 
 	js {
 		browser()
@@ -36,7 +40,7 @@ kotlin {
 		compileSdk = libs.versions.android.compileSdk.get().toInt()
 		minSdk = libs.versions.android.minSdk.get().toInt()
 		compilerOptions {
-			jvmTarget.set(JvmTarget.JVM_11)
+			jvmTarget.set(JvmTarget.JVM_21)
 		}
 		androidResources {
 			enable = true
@@ -53,7 +57,6 @@ kotlin {
 
 	sourceSets {
 		androidMain.dependencies {
-			implementation(libs.compose.uiTooling.preview)
 			implementation(libs.compose.uiTooling)
 			implementation(libs.ktor.client.okhttp)
 		}
@@ -66,6 +69,7 @@ kotlin {
 			implementation(libs.compose.ui)
 			implementation(libs.androidx.lifecycle.viewmodel.compose)
 			implementation(libs.androidx.lifecycle.runtime.compose)
+			implementation(libs.compose.uiTooling.preview)
 
 			implementation(libs.androidx.navigation.compose)
 

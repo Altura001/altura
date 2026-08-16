@@ -14,6 +14,7 @@ import com.example.ultra.auth.presentation.intent.AuthEvent
 import com.example.ultra.auth.presentation.intent.AuthMode
 import com.example.ultra.auth.presentation.intent.AuthState
 import com.example.ultra.core.domain.model.AuthAccountType
+import com.example.ultra.core.domain.repository.CartRepository
 import com.example.ultra.core.domain.util.onFailure
 import com.example.ultra.core.domain.util.onSuccess
 import com.example.ultra.core.presentation.UiText
@@ -32,7 +33,8 @@ class AuthViewModel(
     private val signupVendorUseCase: SignupVendorUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val socialAuthUseCase: SocialAuthUseCase
+    private val socialAuthUseCase: SocialAuthUseCase,
+    private val cartRepository: CartRepository
 ) : ViewModel() {
     private val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
 
@@ -105,6 +107,7 @@ class AuthViewModel(
             )
                 .onSuccess { user ->
                     _state.update { it.copy(isLoading = false, user = user, isLoggedIn = true) }
+                    cartRepository.mergeLocalCartWithServer()
                     _events.send(AuthEvent.NavigateToHome)
                 }
                 .onFailure { error ->
@@ -175,6 +178,7 @@ class AuthViewModel(
             signupResult
                 .onSuccess { user ->
                     _state.update { it.copy(isLoading = false, user = user, isLoggedIn = true) }
+                    cartRepository.mergeLocalCartWithServer()
                     _events.send(AuthEvent.NavigateToHome)
                 }
                 .onFailure { error ->
@@ -189,6 +193,7 @@ class AuthViewModel(
             socialAuthUseCase.google(token)
                 .onSuccess { user ->
                     _state.update { it.copy(isLoading = false, user = user, isLoggedIn = true) }
+                    cartRepository.mergeLocalCartWithServer()
                     _events.send(AuthEvent.NavigateToHome)
                 }
                 .onFailure { error ->
@@ -203,6 +208,7 @@ class AuthViewModel(
             socialAuthUseCase.apple(authorizationCode)
                 .onSuccess { user ->
                     _state.update { it.copy(isLoading = false, user = user, isLoggedIn = true) }
+                    cartRepository.mergeLocalCartWithServer()
                     _events.send(AuthEvent.NavigateToHome)
                 }
                 .onFailure { error ->

@@ -10,7 +10,7 @@ plugins {
 
 kotlin {
 	compilerOptions {
-		jvmTarget = JvmTarget.JVM_11
+		jvmTarget = JvmTarget.JVM_26
 	}
 }
 
@@ -48,8 +48,8 @@ configure<ApplicationExtension> {
 		compose = true
 	}
 	compileOptions {
-		sourceCompatibility = JavaVersion.VERSION_11
-		targetCompatibility = JavaVersion.VERSION_11
+		sourceCompatibility = JavaVersion.VERSION_26
+		targetCompatibility = JavaVersion.VERSION_26
 	}
 
 }

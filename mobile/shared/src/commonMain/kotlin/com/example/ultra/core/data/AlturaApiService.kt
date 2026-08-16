@@ -149,6 +149,20 @@ class AlturaApiService(
 
 	suspend fun clearCart(): CartDto = authorized(HttpMethod.Delete, "$api/cart").decode()
 
+	// ----- Wishlist (auth) ---------------------------------------------------
+
+	suspend fun getWishlist(): WishlistResponseDto =
+		authorized(HttpMethod.Get, "$api/wishlist").decode()
+
+	suspend fun addToWishlist(productId: String): WishlistResponseDto =
+		authorized(HttpMethod.Post, "$api/wishlist", AddWishlistRequest(productId)).decode()
+
+	suspend fun removeFromWishlist(productId: String): WishlistResponseDto =
+		authorized(HttpMethod.Delete, "$api/wishlist/$productId").decode()
+
+	suspend fun toggleWishlist(productId: String): WishlistResponseDto =
+		authorized(HttpMethod.Put, "$api/wishlist/toggle/$productId").decode()
+
 	// ----- Orders + payment (auth) ------------------------------------------
 
 	suspend fun checkout(address: AddressDto): OrderDto =
@@ -287,6 +301,9 @@ data class CheckoutRequest(val shippingAddress: AddressDto)
 
 @Serializable
 data class InitiatePaymentRequest(val callbackUrl: String?)
+
+@Serializable
+data class AddWishlistRequest(val productId: String)
 
 @Serializable
 data class AuthResponse(
@@ -431,4 +448,23 @@ data class PaymentInitiationDto(
 	val publicKey: String,
 	val amountSubunits: Long,
 	val currency: String
+)
+
+@Serializable
+data class WishlistItemResponseDto(
+	val id: String,
+	val productId: String,
+	val productName: String = "",
+	val thumbnailUrl: String? = null,
+	val price: Double = 0.0,
+	val currency: String = "EUR",
+	val inStock: Boolean = true,
+	val addedAt: String = ""
+)
+
+@Serializable
+data class WishlistResponseDto(
+	val userId: String,
+	val items: List<WishlistItemResponseDto> = emptyList(),
+	val itemCount: Int = 0
 )

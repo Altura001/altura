@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	alias(libs.plugins.kotlinJvm)
@@ -13,6 +14,14 @@ dependencies {
 	implementation(libs.kotlinx.coroutinesSwing)
 
 	implementation(libs.compose.uiTooling.preview)
+}
+
+kotlin {
+    jvmToolchain(21)
+
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_21
+    }
 }
 
 compose.desktop {

@@ -536,6 +536,30 @@ namespace AlturaNova.Infrastructure.Persistence.Migrations
                     b.ToTable("vendors", (string)null);
                 });
 
+            modelBuilder.Entity("AlturaNova.Domain.Entities.WishlistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("wishlist_items", (string)null);
+                });
+
             modelBuilder.Entity("AlturaNova.Domain.Entities.Cart", b =>
                 {
                     b.HasOne("AlturaNova.Domain.Entities.User", "User")
@@ -666,6 +690,25 @@ namespace AlturaNova.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("AlturaNova.Domain.Entities.WishlistItem", b =>
+                {
+                    b.HasOne("AlturaNova.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AlturaNova.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AlturaNova.Domain.Entities.Cart", b =>

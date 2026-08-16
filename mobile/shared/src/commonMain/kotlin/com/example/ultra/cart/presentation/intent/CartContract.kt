@@ -15,7 +15,3 @@ sealed interface CartAction {
     data class RemoveItem(val cartItemId: String) : CartAction
     data object ClearCart : CartAction
 }
-
-sealed interface CartEvent {
-    data class ShowError(val message: UiText) : CartEvent
-}

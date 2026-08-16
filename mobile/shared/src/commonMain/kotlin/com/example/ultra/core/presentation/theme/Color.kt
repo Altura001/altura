@@ -36,3 +36,13 @@ val AlturaSearchBg = Color(0xFFECEDEF)
 val AlturaCardBg = Color(0xFFFFFFFF)
 val AlturaTextSecondary = Color(0xFF797474)
 val AlturaDotInactive = Color(0xFFD9D9D9)
+
+// New colors for Product Detail
+val AlturaHeaderBlue = Color(0xFF54A5DA)
+val AlturaAvatarBlue = Color(0xFF42A5F5)
+val AlturaActionOrange = Color(0xFFFE5A00)
+val AlturaLightGray = Color(0xFFF5F5F5)
+val AlturaTextPrimary = Color(0xFF000000)
+val AlturaTextSecondaryGray = Color(0xFF757575)
+val AlturaWhatsAppGreen = Color(0xFF075E54)
+val AlturaLinkBlue = Color(0xFF1976D2)

@@ -84,6 +84,7 @@ api.MapAuthEndpoints();
 api.MapAccountEndpoints();
 api.MapCatalogEndpoints();
 api.MapCartEndpoints();
+api.MapWishlistEndpoints();
 api.MapOrderEndpoints();
 api.MapVendorEndpoints();
 api.MapAdminEndpoints();
