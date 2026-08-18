@@ -19,6 +19,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<OrderAddress> OrderAddresses => Set<OrderAddress>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PickupStation> PickupStations => Set<PickupStation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

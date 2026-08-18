@@ -3,9 +3,12 @@ package com.example.ultra.core.domain.model
 data class Order(
     val id: String,
     val status: String,
-    val subtotal: Double,
-    val total: Double,
-    val currency: String,
+    val deliveryMethod: String = "Shipping",
+    val pickupStationName: String? = null,
+    val subtotal: Double = 0.0,
+    val shippingFee: Double = 0.0,
+    val total: Double = 0.0,
+    val currency: String = "EUR",
     val items: List<OrderItem> = emptyList(),
     val shippingAddress: Address? = null,
     val createdAt: String = ""

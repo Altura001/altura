@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IWishlistRepository, WishlistRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IPickupStationRepository, PickupStationRepository>();
 
         // Security services.
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();

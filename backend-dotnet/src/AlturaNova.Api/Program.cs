@@ -86,6 +86,7 @@ api.MapCatalogEndpoints();
 api.MapCartEndpoints();
 api.MapWishlistEndpoints();
 api.MapOrderEndpoints();
+api.MapPickupStationEndpoints();
 api.MapVendorEndpoints();
 api.MapAdminEndpoints();
 api.MapWebhookEndpoints();

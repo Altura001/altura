@@ -109,6 +109,9 @@ fun MainScreen() {
     val currentDestination = navBackStackEntry?.destination
 
     val isOnAuthScreen = currentDestination?.route == AppRoute.Auth.route
+    val isOnCheckout = currentDestination?.route == AppRoute.Checkout.route
+    val isOnProductDetail = currentDestination?.route?.startsWith("product_detail/") == true
+    val showBottomBar = !isOnAuthScreen && !isOnCheckout && !isOnProductDetail
 
     val cartRepository: CartRepository = koinInject()
     val cart by cartRepository.observeCart().collectAsState(initial = com.example.ultra.core.domain.model.Cart())
@@ -127,7 +130,7 @@ fun MainScreen() {
             }
         },
         bottomBar = {
-            if (!isOnAuthScreen) {
+            if (showBottomBar) {
                 NavigationBar {
                     BottomNavItem.entries.forEach { item ->
                         val badgeCount = if (item == BottomNavItem.CART) cartItemCount else 0
@@ -221,7 +224,7 @@ fun MainScreen() {
 
                 ProductDetailScreenRoot(
                     handle = route.handle,
-                    onNavigateBack = { navController.popBackStack() }
+                    navController = navController
                 )
             }
             composable<AppRoute.Checkout> {

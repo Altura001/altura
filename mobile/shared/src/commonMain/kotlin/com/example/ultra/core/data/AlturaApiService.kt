@@ -163,10 +163,15 @@ class AlturaApiService(
 	suspend fun toggleWishlist(productId: String): WishlistResponseDto =
 		authorized(HttpMethod.Put, "$api/wishlist/toggle/$productId").decode()
 
+	// ----- Pickup Stations (public) -----------------------------------------
+
+	suspend fun getPickupStations(): List<PickupStationDto> =
+		get("$api/pickup-stations").decode()
+
 	// ----- Orders + payment (auth) ------------------------------------------
 
-	suspend fun checkout(address: AddressDto): OrderDto =
-		authorized(HttpMethod.Post, "$api/orders/checkout", CheckoutRequest(address)).decode()
+	suspend fun checkout(address: AddressDto, deliveryMethod: String? = null, pickupStationId: String? = null): OrderDto =
+		authorized(HttpMethod.Post, "$api/orders/checkout", CheckoutRequest(address, deliveryMethod, pickupStationId)).decode()
 
 	suspend fun getOrders(): OrderListDto = authorized(HttpMethod.Get, "$api/orders").decode()
 
@@ -253,7 +258,6 @@ class AlturaApiService(
 	}
 
 	private suspend inline fun <reified T> HttpResponse.decode(): T {
-		println("HttpResponse $status ${status.value}")
 		if (!status.isSuccess()) throw ApiException(status.value)
 		return body()
 	}
@@ -297,7 +301,11 @@ data class AddCartItemRequest(val variantId: String, val quantity: Int)
 data class UpdateCartItemRequest(val quantity: Int)
 
 @Serializable
-data class CheckoutRequest(val shippingAddress: AddressDto)
+data class CheckoutRequest(
+	val shippingAddress: AddressDto,
+	val deliveryMethod: String? = null,
+	val pickupStationId: String? = null
+)
 
 @Serializable
 data class InitiatePaymentRequest(val callbackUrl: String?)
@@ -427,7 +435,10 @@ data class OrderItemDto(
 data class OrderDto(
 	val id: String,
 	val status: String,
+	val deliveryMethod: String = "Shipping",
+	val pickupStationName: String? = null,
 	val subtotal: Double = 0.0,
+	val shippingFee: Double = 0.0,
 	val total: Double = 0.0,
 	val currency: String = "EUR",
 	val shippingAddress: AddressDto? = null,
@@ -467,4 +478,14 @@ data class WishlistResponseDto(
 	val userId: String,
 	val items: List<WishlistItemResponseDto> = emptyList(),
 	val itemCount: Int = 0
+)
+
+@Serializable
+data class PickupStationDto(
+	val id: String,
+	val name: String,
+	val address: String,
+	val city: String,
+	val phone: String? = null,
+	val operatingHours: String? = null
 )

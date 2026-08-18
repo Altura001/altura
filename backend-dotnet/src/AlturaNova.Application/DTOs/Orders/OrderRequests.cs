@@ -38,4 +38,11 @@ public sealed record CheckoutRequest
 {
     [Required]
     public required AddressRequest ShippingAddress { get; init; }
+
+    /// <summary>Delivery method: "Shipping" (door delivery) or "Pickup" (station).</summary>
+    [MaxLength(20)]
+    public string? DeliveryMethod { get; init; }
+
+    /// <summary>Required when DeliveryMethod is "Pickup".</summary>
+    public Guid? PickupStationId { get; init; }
 }

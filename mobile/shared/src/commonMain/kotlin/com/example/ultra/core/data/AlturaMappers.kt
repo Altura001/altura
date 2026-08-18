@@ -10,6 +10,7 @@ import com.example.ultra.core.domain.model.PaymentInitiation
 import com.example.ultra.core.domain.model.Product
 import com.example.ultra.core.domain.model.ProductVariant
 import com.example.ultra.core.domain.model.User
+import com.example.ultra.core.domain.model.PickupStation
 import com.example.ultra.core.domain.model.Vendor
 
 /** Maps Altura .NET backend DTOs to domain models. */
@@ -114,7 +115,10 @@ fun OrderItemDto.toOrderItem(): OrderItem = OrderItem(
 fun OrderDto.toOrder(): Order = Order(
     id = id,
     status = status,
+    deliveryMethod = deliveryMethod,
+    pickupStationName = pickupStationName,
     subtotal = subtotal,
+    shippingFee = shippingFee,
     total = total,
     currency = currency,
     items = items.map { it.toOrderItem() },
@@ -142,4 +146,13 @@ fun WishlistItemResponseDto.toProduct(): Product = Product(
     imageUrl = thumbnailUrl,
     thumbnailUrl = thumbnailUrl,
     inStock = inStock
+)
+
+fun PickupStationDto.toPickupStation(): PickupStation = PickupStation(
+    id = id,
+    name = name,
+    address = address,
+    city = city,
+    phone = phone,
+    operatingHours = operatingHours
 )

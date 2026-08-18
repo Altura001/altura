@@ -8,6 +8,7 @@ import com.example.ultra.core.domain.model.Order
 import com.example.ultra.core.domain.model.PaymentInitiation
 import com.example.ultra.core.domain.model.User
 import com.example.ultra.core.domain.model.Vendor
+import com.example.ultra.core.domain.model.PickupStation
 import com.example.ultra.core.domain.util.DataError
 import com.example.ultra.core.domain.util.EmptyResult
 import com.example.ultra.core.domain.util.Result
@@ -48,6 +49,7 @@ interface CatalogRepository {
     suspend fun searchProducts(query: String): Result<List<Product>, DataError.Network>
     suspend fun getProductById(productId: String): Result<Product, DataError.Network>
     suspend fun getProductByHandle(handle: String): Result<Product?, DataError.Network>
+    suspend fun getPickupStations(): Result<List<PickupStation>, DataError.Network>
 }
 
 interface CartRepository {
@@ -61,7 +63,7 @@ interface CartRepository {
 }
 
 interface OrderRepository {
-    suspend fun checkout(address: Address): Result<Order, DataError.Network>
+    suspend fun checkout(address: Address, deliveryMethod: String? = null, pickupStationId: String? = null): Result<Order, DataError.Network>
     suspend fun getOrders(): Result<List<Order>, DataError.Network>
     suspend fun getOrder(orderId: String): Result<Order, DataError.Network>
     suspend fun cancelOrder(orderId: String): Result<Order, DataError.Network>

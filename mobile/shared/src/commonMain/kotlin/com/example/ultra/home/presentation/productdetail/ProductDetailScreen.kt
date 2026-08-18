@@ -49,10 +49,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.example.ultra.core.data.util.formatTwoDecimals
 import com.example.ultra.core.domain.repository.CartRepository
 import com.example.ultra.core.presentation.ObserveAsEvents
 import com.example.ultra.core.presentation.theme.*
+import com.example.ultra.navigation.presentation.AppRoute
 import com.example.ultra.searchbar.presentation.screen.SearchBar
 import io.kamel.image.KamelImage
 import io.kamel.image.asyncPainterResource
@@ -63,8 +65,8 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun ProductDetailScreenRoot(
     handle: String,
-    onNavigateBack: () -> Unit,
-    viewModel: ProductDetailViewModel = koinViewModel()
+    viewModel: ProductDetailViewModel = koinViewModel(),
+    navController: NavHostController
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -80,8 +82,9 @@ fun ProductDetailScreenRoot(
         state = state,
         onAction = viewModel::onAction,
         onRetry = { viewModel.onAction(ProductDetailAction.LoadProduct(handle)) },
-        onNavigateBack = onNavigateBack,
-        cartItemCount = cartItemCount
+        onNavigateBack = { navController.popBackStack() },
+        cartItemCount = cartItemCount,
+        navController = navController
     )
 }
 
@@ -93,6 +96,7 @@ fun ProductDetailScreen(
     onRetry: () -> Unit,
     onNavigateBack: () -> Unit,
     cartItemCount: Int = 0,
+    navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -130,11 +134,13 @@ fun ProductDetailScreen(
                         },
                         modifier = Modifier.padding(end = 4.dp)
                     ) {
-                        Icon(
-                            Icons.Default.ShoppingCart,
-                            contentDescription = "Cart",
-                            tint = AlturaTextPrimary
-                        )
+                        IconButton(onClick = {navController.navigate(AppRoute.Cart) }) {
+                            Icon(
+                                Icons.Default.ShoppingCart,
+                                contentDescription = "Cart",
+                                tint = AlturaTextPrimary
+                            )
+                        }
                     }
                     IconButton(onClick = { }) {
                         Icon(

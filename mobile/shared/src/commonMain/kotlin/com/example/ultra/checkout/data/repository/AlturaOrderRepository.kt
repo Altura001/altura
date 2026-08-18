@@ -16,8 +16,8 @@ class AlturaOrderRepository(
     private val api: AlturaApiService
 ) : OrderRepository {
 
-    override suspend fun checkout(address: Address): Result<Order, DataError.Network> =
-        safeApiCall { api.checkout(address.toDto()).toOrder() }
+    override suspend fun checkout(address: Address, deliveryMethod: String?, pickupStationId: String?): Result<Order, DataError.Network> =
+        safeApiCall { api.checkout(address.toDto(), deliveryMethod, pickupStationId).toOrder() }
 
     override suspend fun getOrders(): Result<List<Order>, DataError.Network> =
         safeApiCall { api.getOrders() }.map { list -> list.items.map { it.toOrder() } }

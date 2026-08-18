@@ -7,3 +7,8 @@ fun Double.formatTwoDecimals(): String {
     val cents = parts.getOrNull(1)?.padEnd(2, '0')?.take(2) ?: "00"
     return "${parts[0]}.$cents"
 }
+
+fun Double.formatCurrency(): String {
+    val rounded = kotlin.math.round(this).toLong()
+    return rounded.toString().reversed().chunked(3).joinToString(",").reversed()
+}

@@ -18,6 +18,7 @@ import com.example.ultra.cart.presentation.viewmodel.CartViewModel
 import com.example.ultra.home.data.repository.AlturaCatalogRepository
 import com.example.ultra.home.domain.usecase.GetProductsUseCase
 import com.example.ultra.home.domain.usecase.GetVendorsUseCase
+import com.example.ultra.home.domain.usecase.GetPickupStationsUseCase
 import com.example.ultra.home.domain.usecase.SearchProductsUseCase
 import com.example.ultra.home.presentation.viewmodel.HomeViewModel
 import com.example.ultra.home.presentation.productdetail.ProductDetailViewModel
@@ -92,6 +93,7 @@ val catalogDomainModule = module {
     singleOf(::GetVendorsUseCase)
     singleOf(::GetProductsUseCase)
     singleOf(::SearchProductsUseCase)
+    singleOf(::GetPickupStationsUseCase)
 }
 
 val catalogPresentationModule = module {

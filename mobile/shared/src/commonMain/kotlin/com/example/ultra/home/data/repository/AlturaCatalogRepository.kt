@@ -1,9 +1,11 @@
 package com.example.ultra.home.data.repository
 
 import com.example.ultra.core.data.AlturaApiService
+import com.example.ultra.core.data.toPickupStation
 import com.example.ultra.core.data.toProduct
 import com.example.ultra.core.data.toVendor
 import com.example.ultra.core.data.util.safeApiCall
+import com.example.ultra.core.domain.model.PickupStation
 import com.example.ultra.core.domain.model.Product
 import com.example.ultra.core.domain.model.Vendor
 import com.example.ultra.core.domain.repository.CatalogRepository
@@ -33,4 +35,7 @@ class AlturaCatalogRepository(
 
     override suspend fun getProductByHandle(handle: String): Result<Product?, DataError.Network> =
         safeApiCall { api.getProductByHandle(handle).toProduct() }
+
+    override suspend fun getPickupStations(): Result<List<PickupStation>, DataError.Network> =
+        safeApiCall { api.getPickupStations() }.map { list -> list.map { it.toPickupStation() } }
 }

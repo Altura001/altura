@@ -16,19 +16,38 @@ public sealed class OrderService(
     IOrderRepository orders,
     IUserRepository users,
     IPaymentGateway paymentGateway,
+    IPickupStationRepository pickupStations,
     IUnitOfWork unitOfWork) : IOrderService
 {
+    private const decimal PickupFeePercent = 0.02m;
+    private const decimal ShippingFeePercent = 0.05m;
+
     public async Task<OrderResponse> CheckoutAsync(Guid userId, CheckoutRequest request, CancellationToken ct = default)
     {
         var cart = await carts.GetActiveByUserAsync(userId, ct);
         if (cart is null || cart.Items.Count == 0)
             throw new ConflictException("Your cart is empty.");
 
+        var deliveryMethod = ParseDeliveryMethod(request.DeliveryMethod);
+
+        if (deliveryMethod == DeliveryMethod.Pickup)
+        {
+            if (request.PickupStationId is null)
+                throw new ConflictException("A pickup station must be selected for pickup delivery.");
+
+            var station = await pickupStations.GetByIdAsync(request.PickupStationId.Value, ct)
+                ?? throw new ConflictException("The selected pickup station is not available.");
+            if (!station.IsActive)
+                throw new ConflictException("The selected pickup station is no longer active.");
+        }
+
         var currency = cart.Items.First().Currency;
         var order = new Order
         {
             UserId = userId,
             Status = OrderStatus.Pending,
+            DeliveryMethod = deliveryMethod,
+            PickupStationId = request.PickupStationId,
             Currency = currency
         };
 
@@ -43,7 +62,6 @@ public sealed class OrderService(
                 throw new ConflictException(
                     $"Insufficient stock for '{item.Title}': {variant.InventoryQuantity} available, {item.Quantity} requested.");
 
-            // Decrement inventory (tracked entity → persisted on SaveChanges).
             variant.InventoryQuantity -= item.Quantity;
 
             var lineTotal = item.UnitPrice * item.Quantity;
@@ -66,12 +84,14 @@ public sealed class OrderService(
         }
 
         order.Subtotal = subtotal;
-        order.Total = subtotal; // No shipping/tax in v1.
+        order.ShippingFee = deliveryMethod == DeliveryMethod.Pickup
+            ? Math.Round(subtotal * PickupFeePercent, 2)
+            : Math.Round(subtotal * ShippingFeePercent, 2);
+        order.Total = subtotal + order.ShippingFee;
         order.ShippingAddress = MapAddress(order.Id, request.ShippingAddress);
 
         await orders.AddAsync(order, ct);
 
-        // Empty the cart now that the order captured its contents.
         cart.Items.Clear();
         cart.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -138,7 +158,7 @@ public sealed class OrderService(
             ?? throw new NotFoundException("Order not found.");
 
         if (order.Status == OrderStatus.Paid)
-            return order.ToResponse(); // Idempotent.
+            return order.ToResponse();
 
         if (string.IsNullOrWhiteSpace(order.PaymentReference))
             throw new ConflictException("No payment has been initiated for this order.");
@@ -155,19 +175,18 @@ public sealed class OrderService(
 
         var order = await orders.GetTrackedByPaymentReferenceAsync(reference, ct);
         if (order is null || order.Status == OrderStatus.Paid)
-            return; // Unknown reference or already paid → idempotent no-op.
+            return;
 
         await ApplyVerificationAsync(order, ct);
         await unitOfWork.SaveChangesAsync(ct);
     }
 
-    /// <summary>Verifies the order's reference with the provider and marks it paid on a matching success.</summary>
     private async Task ApplyVerificationAsync(Order order, CancellationToken ct)
     {
         var verification = await paymentGateway.VerifyAsync(order.PaymentReference!, ct);
 
         if (verification.Status != PaymentStatus.Success)
-            return; // Leave the order pending; caller returns current state.
+            return;
 
         if (verification.AmountSubunits != ToSubunits(order.Total))
             throw new ConflictException("The paid amount does not match the order total.");
@@ -209,7 +228,6 @@ public sealed class OrderService(
         if (order.Status == OrderStatus.Cancelled)
             throw new ConflictException("A cancelled order cannot change status.");
 
-        // Restock when an admin cancels an order that previously reserved stock.
         if (status == OrderStatus.Cancelled)
             await RestockAsync(order, ct);
 
@@ -230,6 +248,14 @@ public sealed class OrderService(
                 variant.InventoryQuantity += item.Quantity;
         }
     }
+
+    private static DeliveryMethod ParseDeliveryMethod(string? value) =>
+        value?.ToLowerInvariant() switch
+        {
+            "pickup" => DeliveryMethod.Pickup,
+            "shipping" or "delivery" or null => DeliveryMethod.Shipping,
+            _ => throw new ConflictException($"Unknown delivery method '{value}'.")
+        };
 
     private static long ToSubunits(decimal amount) => (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
 

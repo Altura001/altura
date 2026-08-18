@@ -120,7 +120,10 @@ public static class MappingExtensions
     public static OrderResponse ToResponse(this Order o) => new(
         o.Id,
         o.Status.ToString(),
+        o.DeliveryMethod.ToString(),
+        o.PickupStation?.Name,
         o.Subtotal,
+        o.ShippingFee,
         o.Total,
         o.Currency,
         o.ShippingAddress.ToResponse(),

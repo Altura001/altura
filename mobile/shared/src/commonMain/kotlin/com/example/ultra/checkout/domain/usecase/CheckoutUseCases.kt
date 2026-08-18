@@ -9,8 +9,12 @@ import com.example.ultra.core.domain.util.DataError
 import com.example.ultra.core.domain.util.Result
 
 class CheckoutUseCase(private val repository: OrderRepository) {
-    suspend operator fun invoke(address: Address): Result<Order, DataError.Network> =
-        repository.checkout(address)
+    suspend operator fun invoke(
+        address: Address,
+        deliveryMethod: String? = null,
+        pickupStationId: String? = null
+    ): Result<Order, DataError.Network> =
+        repository.checkout(address, deliveryMethod, pickupStationId)
 }
 
 class GetOrdersUseCase(private val repository: OrderRepository) {

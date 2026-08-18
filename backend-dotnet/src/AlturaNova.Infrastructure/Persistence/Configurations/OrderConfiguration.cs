@@ -13,6 +13,8 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         b.HasKey(o => o.Id);
         b.Property(o => o.Id).ValueGeneratedNever();
         b.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(o => o.DeliveryMethod).HasConversion<string>().HasMaxLength(20);
+        b.Property(o => o.ShippingFee).HasPrecision(18, 2);
         b.Property(o => o.Subtotal).HasPrecision(18, 2);
         b.Property(o => o.Total).HasPrecision(18, 2);
         b.Property(o => o.Currency).HasMaxLength(3).IsRequired();
@@ -24,6 +26,11 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .WithMany()
             .HasForeignKey(o => o.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        b.HasOne(o => o.PickupStation)
+            .WithMany()
+            .HasForeignKey(o => o.PickupStationId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         b.HasMany(o => o.Items)
             .WithOne(i => i.Order)

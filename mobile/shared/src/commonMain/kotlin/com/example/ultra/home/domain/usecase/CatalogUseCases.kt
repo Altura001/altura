@@ -1,5 +1,6 @@
 package com.example.ultra.home.domain.usecase
 
+import com.example.ultra.core.domain.model.PickupStation
 import com.example.ultra.core.domain.model.Product
 import com.example.ultra.core.domain.model.Vendor
 import com.example.ultra.core.domain.repository.CatalogRepository
@@ -26,4 +27,10 @@ class SearchProductsUseCase(private val repository: CatalogRepository) {
 	suspend operator fun invoke(query: String): Result<List<Product>, DataError.Network> {
 		return repository.searchProducts(query)
 	}
+}
+
+class GetPickupStationsUseCase(private val repository: CatalogRepository) {
+    suspend operator fun invoke(): Result<List<PickupStation>, DataError.Network> {
+        return repository.getPickupStations()
+    }
 }

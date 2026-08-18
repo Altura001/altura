@@ -12,7 +12,12 @@ public class Order
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
+    public DeliveryMethod DeliveryMethod { get; set; } = DeliveryMethod.Shipping;
+    public Guid? PickupStationId { get; set; }
+    public PickupStation? PickupStation { get; set; }
+
     public decimal Subtotal { get; set; }
+    public decimal ShippingFee { get; set; }
     public decimal Total { get; set; }
     public string Currency { get; set; } = "EUR";
 

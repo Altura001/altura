@@ -29,7 +29,10 @@ public sealed record OrderItemResponse(
 public sealed record OrderResponse(
     Guid Id,
     string Status,
+    string DeliveryMethod,
+    string? PickupStationName,
     decimal Subtotal,
+    decimal ShippingFee,
     decimal Total,
     string Currency,
     AddressResponse? ShippingAddress,

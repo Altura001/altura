@@ -72,15 +72,15 @@ fun CartScreen(
                         fontSize = 20.sp
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = { /* Handle back */ }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                },
+//                navigationIcon = {
+//                    IconButton(onClick = { /* Handle back */ }) {
+//                        Icon(
+//                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+//                            contentDescription = "Back",
+//                            modifier = Modifier.size(28.dp)
+//                        )
+//                    }
+//                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White
                 )

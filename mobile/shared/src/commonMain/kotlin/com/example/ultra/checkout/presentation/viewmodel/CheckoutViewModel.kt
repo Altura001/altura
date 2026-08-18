@@ -11,11 +11,14 @@ import com.example.ultra.checkout.presentation.intent.CheckoutAction
 import com.example.ultra.checkout.presentation.intent.CheckoutEvent
 import com.example.ultra.checkout.presentation.intent.CheckoutState
 import com.example.ultra.checkout.presentation.intent.CheckoutStep
+import com.example.ultra.checkout.presentation.intent.DeliveryMethod
 import com.example.ultra.core.domain.model.Address
+import com.example.ultra.core.domain.repository.AuthRepository
 import com.example.ultra.core.domain.util.onFailure
 import com.example.ultra.core.domain.util.onSuccess
 import com.example.ultra.core.presentation.UiText
 import com.example.ultra.core.presentation.toUiText
+import com.example.ultra.home.domain.usecase.GetPickupStationsUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +33,9 @@ class CheckoutViewModel(
     private val checkoutUseCase: CheckoutUseCase,
     private val initiatePaymentUseCase: InitiatePaymentUseCase,
     private val verifyPaymentUseCase: VerifyPaymentUseCase,
-    private val clearCartUseCase: ClearCartUseCase
+    private val clearCartUseCase: ClearCartUseCase,
+    private val authRepository: AuthRepository,
+    private val getPickupStationsUseCase: GetPickupStationsUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CheckoutState())
@@ -40,7 +45,9 @@ class CheckoutViewModel(
     val events = _events.receiveAsFlow()
 
     init {
+        prefilledFromUser()
         loadCartSummary()
+        loadPickupStations()
     }
 
     fun onAction(action: CheckoutAction) {
@@ -52,19 +59,58 @@ class CheckoutViewModel(
             is CheckoutAction.OnPostalCodeChange -> _state.update { it.copy(postalCode = action.value) }
             is CheckoutAction.OnCountryChange -> _state.update { it.copy(country = action.value.uppercase()) }
             is CheckoutAction.OnPhoneChange -> _state.update { it.copy(phone = action.value) }
+            is CheckoutAction.SelectTab -> _state.update { it.copy(step = action.step) }
+            is CheckoutAction.SelectDeliveryMethod -> {
+                _state.update { it.copy(deliveryMethod = action.method) }
+                recalculateFees()
+            }
+            is CheckoutAction.SelectPickupStation -> _state.update { it.copy(selectedStation = action.station) }
             is CheckoutAction.PlaceOrder -> placeOrder()
             is CheckoutAction.StartPayment -> startPayment()
             is CheckoutAction.ConfirmPayment -> confirmPayment()
-            is CheckoutAction.BackToAddress -> _state.update { it.copy(step = CheckoutStep.Address, error = null) }
+            is CheckoutAction.BackToAddress -> _state.update { it.copy(step = CheckoutStep.Delivery, error = null) }
+        }
+    }
+
+    private fun prefilledFromUser() {
+        val user = authRepository.getCurrentUser() ?: return
+        _state.update {
+            it.copy(
+                firstName = user.firstName,
+                lastName = user.lastName,
+                phone = user.phone ?: ""
+            )
         }
     }
 
     private fun loadCartSummary() {
         viewModelScope.launch {
             getCartUseCase().onSuccess { cart ->
-                _state.update { it.copy(cartTotal = cart.total, currency = cart.currency) }
+                _state.update {
+                    it.copy(
+                        cartTotal = cart.total,
+                        currency = cart.currency
+                    )
+                }
+                recalculateFees()
             }
         }
+    }
+
+    private fun loadPickupStations() {
+        viewModelScope.launch {
+            getPickupStationsUseCase().onSuccess { stations ->
+                _state.update { it.copy(pickupStations = stations) }
+            }
+        }
+    }
+
+    private fun recalculateFees() {
+        val cartTotal = _state.value.cartTotal
+        val method = _state.value.deliveryMethod
+        val shippingFee = if (method == DeliveryMethod.Shipping) cartTotal * 0.05 else 0.0
+        val pickupFee = if (method == DeliveryMethod.Pickup) cartTotal * 0.02 else 0.0
+        _state.update { it.copy(shippingFee = shippingFee, pickupFee = pickupFee) }
     }
 
     private fun placeOrder() {
@@ -73,6 +119,11 @@ class CheckoutViewModel(
             s.city.isBlank() || s.postalCode.isBlank() || s.country.length != 2
         ) {
             _state.update { it.copy(error = UiText.DynamicString("Please complete all address fields (country as a 2-letter code).")) }
+            return
+        }
+
+        if (s.deliveryMethod == DeliveryMethod.Pickup && s.selectedStation == null) {
+            _state.update { it.copy(error = UiText.DynamicString("Please select a pickup station.")) }
             return
         }
 
@@ -88,7 +139,9 @@ class CheckoutViewModel(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            checkoutUseCase(address)
+            val method = if (s.deliveryMethod == DeliveryMethod.Pickup) "Pickup" else "Shipping"
+            val stationId = s.selectedStation?.id
+            checkoutUseCase(address, method, stationId)
                 .onSuccess { order ->
                     _state.update {
                         it.copy(isLoading = false, order = order, step = CheckoutStep.Payment)
@@ -111,7 +164,7 @@ class CheckoutViewModel(
                         it.copy(
                             isLoading = false,
                             paymentInitiation = init,
-                            step = CheckoutStep.AwaitingConfirmation
+                            step = CheckoutStep.Payment
                         )
                     }
                     _events.send(CheckoutEvent.OpenUrl(init.authorizationUrl))
@@ -128,7 +181,6 @@ class CheckoutViewModel(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
 
-            // Poll verification a few times to allow the provider callback to settle.
             repeat(MAX_VERIFY_ATTEMPTS) { attempt ->
                 val result = verifyPaymentUseCase(order.id)
                 var paid = false

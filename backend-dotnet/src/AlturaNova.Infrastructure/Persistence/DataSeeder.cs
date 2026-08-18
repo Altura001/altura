@@ -110,6 +110,58 @@ public static class DataSeeder
         );
 
         await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Seeding pickup stations...");
+
+        db.PickupStations.AddRange(
+            new PickupStation
+            {
+                Name = "Altura Hub - Lekki",
+                Address = "15 Admiralty Way, Lekki Phase 1, Lagos",
+                City = "Lagos",
+                Phone = "+234 801 234 5678",
+                OperatingHours = "Mon-Fri: 9AM-6PM, Sat: 10AM-4PM",
+                IsActive = true
+            },
+            new PickupStation
+            {
+                Name = "Altura Hub - Ikeja",
+                Address = "22 Opebi Road, Ikeja, Lagos",
+                City = "Lagos",
+                Phone = "+234 802 345 6789",
+                OperatingHours = "Mon-Fri: 8AM-5PM, Sat: 9AM-3PM",
+                IsActive = true
+            },
+            new PickupStation
+            {
+                Name = "Altura Hub - Victoria Island",
+                Address = "8 Akin Adesola Street, Victoria Island, Lagos",
+                City = "Lagos",
+                Phone = "+234 803 456 7890",
+                OperatingHours = "Mon-Fri: 9AM-6PM",
+                IsActive = true
+            },
+            new PickupStation
+            {
+                Name = "Altura Hub - Abuja Central",
+                Address = "45 Aminu Kano Crescent, Wuse 2, Abuja",
+                City = "Abuja",
+                Phone = "+234 804 567 8901",
+                OperatingHours = "Mon-Fri: 9AM-5PM, Sat: 10AM-2PM",
+                IsActive = true
+            },
+            new PickupStation
+            {
+                Name = "Altura Hub - Port Harcourt",
+                Address = "12 Olu Obasanjo Road, Port Harcourt, Rivers",
+                City = "Port Harcourt",
+                Phone = "+234 805 678 9012",
+                OperatingHours = "Mon-Fri: 9AM-5PM",
+                IsActive = true
+            }
+        );
+
+        await db.SaveChangesAsync(ct);
         logger.LogInformation("Seed complete.");
     }
 
