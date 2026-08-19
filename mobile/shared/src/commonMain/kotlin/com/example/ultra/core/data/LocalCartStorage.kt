@@ -3,8 +3,8 @@ package com.example.ultra.core.data
 import com.example.ultra.core.domain.model.Cart
 import com.example.ultra.core.domain.model.CartItem
 import com.russhwolf.settings.Settings
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 
 class LocalCartStorage(private val settings: Settings) {
 
@@ -52,7 +52,7 @@ class LocalCartStorage(private val settings: Settings) {
             }
         } else {
             cart.items + CartItem(
-                id = "local_${product.id}_${variant?.id ?: ""}_${System.currentTimeMillis()}",
+                id = "local_${product.id}_${variant?.id ?: ""}_${Clock.System.now().toEpochMilliseconds()}",
                 productId = product.id,
                 variantId = variant?.id ?: "",
                 title = product.name,

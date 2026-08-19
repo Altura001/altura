@@ -32,9 +32,9 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=altura_nova;Username=altura;Password=altura_dev_password"
       Jwt__Secret: "CHANGE_ME_dev_only_super_secret_key_at_least_32_bytes_long_1234567890"
-      # Paystack test keys — set these via your shell/.env to enable real payments.
-      Paystack__SecretKey: "${PAYSTACK_SECRET_KEY:-}"
-      Paystack__PublicKey: "${PAYSTACK_PUBLIC_KEY:-}"
+      # Paystack test keys — override via shell env vars for production.
+      Paystack__SecretKey: "${PAYSTACK_SECRET_KEY:-sk_test_19cf17c889e68922e1dbf3fef23a8dd8da32a8e3}"
+      Paystack__PublicKey: "${PAYSTACK_PUBLIC_KEY:-pk_test_4382b03d8fe7ece405a5d4d008150d8798e296df}"
       Paystack__Currency: "${PAYSTACK_CURRENCY:-NGN}"
     ports:
       - "8080:8080"

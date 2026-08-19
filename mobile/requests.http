@@ -1,0 +1,18 @@
+POST http://localhost:8080/api/orders/checkout
+Content-Type: application/json
+Accept: application/json
+
+
+{"shippingAddress":
+{
+  "firstName":"d","lastName":"d","line1":"d","city":"d","postalCode":"d","country":"NG","phone":"0707959598383"},"deliveryMethod":"Pickup","pickupStationId":"a4444444-4444-4444-4444-444444444444","items":[{"variantId":"0dbce5d5-ac20-4a52-8a10-98cf8d6154cf","quantity":1}],"email":"olayanju04@"}
+
+POST http://localhost:8080/api/orders/0e4fcffc-27eb-446e-822b-cbb108595092/pay
+Content-Type: application/json
+Accept: application/json
+
+{"callbackUrl":null}
+
+<> 2026-08-19T112553.200.json
+<> 2026-08-19T112150.409.json
+

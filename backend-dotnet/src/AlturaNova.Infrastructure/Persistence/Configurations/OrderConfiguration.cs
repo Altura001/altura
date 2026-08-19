@@ -19,13 +19,14 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         b.Property(o => o.Total).HasPrecision(18, 2);
         b.Property(o => o.Currency).HasMaxLength(3).IsRequired();
         b.Property(o => o.PaymentReference).HasMaxLength(100);
+        b.Property(o => o.GuestEmail).HasMaxLength(200);
         b.HasIndex(o => o.PaymentReference);
         b.HasIndex(o => new { o.UserId, o.CreatedAt });
 
         b.HasOne(o => o.User)
             .WithMany()
             .HasForeignKey(o => o.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull);
 
         b.HasOne(o => o.PickupStation)
             .WithMany()

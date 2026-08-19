@@ -1,6 +1,7 @@
 package com.example.ultra.di
 
 import com.example.ultra.core.data.LocalCartStorage
+import com.example.ultra.core.data.LocalCheckoutStorage
 import com.example.ultra.core.data.LocalWishlistStorage
 import com.example.ultra.core.data.TokenStorage
 import com.russhwolf.settings.Settings
@@ -11,4 +12,5 @@ val settingsModule = module {
     single { TokenStorage(get()) }
     single { LocalCartStorage(get()) }
     single { LocalWishlistStorage(get()) }
+    single { LocalCheckoutStorage(get()) }
 }

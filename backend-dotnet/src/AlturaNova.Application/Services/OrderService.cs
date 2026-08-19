@@ -22,12 +22,8 @@ public sealed class OrderService(
     private const decimal PickupFeePercent = 0.02m;
     private const decimal ShippingFeePercent = 0.05m;
 
-    public async Task<OrderResponse> CheckoutAsync(Guid userId, CheckoutRequest request, CancellationToken ct = default)
+    public async Task<OrderResponse> CheckoutAsync(Guid? userId, CheckoutRequest request, CancellationToken ct = default)
     {
-        var cart = await carts.GetActiveByUserAsync(userId, ct);
-        if (cart is null || cart.Items.Count == 0)
-            throw new ConflictException("Your cart is empty.");
-
         var deliveryMethod = ParseDeliveryMethod(request.DeliveryMethod);
 
         if (deliveryMethod == DeliveryMethod.Pickup)
@@ -41,10 +37,72 @@ public sealed class OrderService(
                 throw new ConflictException("The selected pickup station is no longer active.");
         }
 
-        var currency = cart.Items.First().Currency;
+        // Determine items: use server-side cart (authenticated) or request body (guest).
+        List<(Guid VariantId, int Quantity, Guid ProductId, string Title, string Sku,
+              string ThumbnailUrl, decimal UnitPrice, string Currency, Guid VendorId)> lineItems;
+
+        if (userId.HasValue)
+        {
+            var cart = await carts.GetActiveByUserAsync(userId.Value, ct);
+            if (cart is null || cart.Items.Count == 0)
+                throw new ConflictException("Your cart is empty.");
+
+            lineItems = cart.Items.OrderBy(i => i.CreatedAt).Select(i => (
+                i.VariantId,
+                i.Quantity,
+                i.ProductId,
+                i.Title,
+                "", // SKU resolved below from variant
+                i.ThumbnailUrl,
+                i.UnitPrice,
+                i.Currency,
+                Guid.Empty // VendorId resolved below from variant
+            )).ToList();
+
+            // Clear server-side cart after snapshotting
+            cart.Items.Clear();
+            cart.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            // Guest: items must be provided in the request body
+            if (request.Items is null || request.Items.Count == 0)
+                throw new ConflictException("Cart items are required for guest checkout.");
+
+            if (string.IsNullOrWhiteSpace(request.Email))
+                throw new ConflictException("An email address is required for guest checkout.");
+
+            // Resolve each item from the database
+            lineItems = new List<(Guid VariantId, int Quantity, Guid ProductId, string Title, string Sku,
+                                  string ThumbnailUrl, decimal UnitPrice, string Currency, Guid VendorId)>();
+
+            foreach (var item in request.Items)
+            {
+                var variant = await products.GetVariantAsync(item.VariantId, ct)
+                    ?? throw new ConflictException($"Variant {item.VariantId} is no longer available.");
+
+                var product = variant.Product;
+                var vendorId = product?.VendorId ?? Guid.Empty;
+
+                lineItems.Add((
+                    item.VariantId,
+                    item.Quantity,
+                    variant.ProductId,
+                    product?.Name ?? variant.Title,
+                    variant.Sku,
+                    product?.Images.FirstOrDefault()?.Url ?? "",
+                    variant.Price,
+                    variant.Currency,
+                    vendorId
+                ));
+            }
+        }
+
+        var currency = lineItems.First().Currency;
         var order = new Order
         {
             UserId = userId,
+            GuestEmail = !userId.HasValue ? request.Email : null,
             Status = OrderStatus.Pending,
             DeliveryMethod = deliveryMethod,
             PickupStationId = request.PickupStationId,
@@ -53,7 +111,7 @@ public sealed class OrderService(
 
         decimal subtotal = 0m;
 
-        foreach (var item in cart.Items.OrderBy(i => i.CreatedAt))
+        foreach (var item in lineItems)
         {
             var variant = await products.GetVariantAsync(item.VariantId, ct)
                 ?? throw new ConflictException($"Product for cart item '{item.Title}' is no longer available.");
@@ -72,9 +130,9 @@ public sealed class OrderService(
                 OrderId = order.Id,
                 ProductId = item.ProductId,
                 VariantId = item.VariantId,
-                VendorId = variant.Product?.VendorId ?? Guid.Empty,
+                VendorId = item.VendorId,
                 ProductName = item.Title,
-                Sku = variant.Sku,
+                Sku = item.Sku,
                 ThumbnailUrl = item.ThumbnailUrl,
                 UnitPrice = item.UnitPrice,
                 Quantity = item.Quantity,
@@ -91,10 +149,6 @@ public sealed class OrderService(
         order.ShippingAddress = MapAddress(order.Id, request.ShippingAddress);
 
         await orders.AddAsync(order, ct);
-
-        cart.Items.Clear();
-        cart.UpdatedAt = DateTimeOffset.UtcNow;
-
         await unitOfWork.SaveChangesAsync(ct);
 
         return order.ToResponse();
@@ -113,16 +167,29 @@ public sealed class OrderService(
         return order.ToResponse();
     }
 
-    public async Task<PaymentInitiationResponse> InitiatePaymentAsync(Guid userId, Guid orderId, string? callbackUrl, CancellationToken ct = default)
+    public async Task<PaymentInitiationResponse> InitiatePaymentAsync(Guid? userId, Guid orderId, string? callbackUrl, CancellationToken ct = default)
     {
-        var order = await orders.GetTrackedByIdForUserAsync(orderId, userId, ct)
-            ?? throw new NotFoundException("Order not found.");
+        var order = userId.HasValue
+            ? await orders.GetTrackedByIdForUserAsync(orderId, userId.Value, ct)
+            : await orders.GetTrackedByIdAsync(orderId, ct)
+              ?? throw new NotFoundException("Order not found.");
 
         if (order.Status != OrderStatus.Pending)
             throw new ConflictException($"Only pending orders can be paid; this order is {order.Status}.");
 
-        var user = await users.GetByIdAsync(userId, ct)
-            ?? throw new NotFoundException("User not found.");
+        // Resolve email: try user account first, then fall back to guest email stored on order.
+        string email;
+        if (userId.HasValue)
+        {
+            var user = await users.GetByIdAsync(userId.Value, ct)
+                ?? throw new NotFoundException("User not found.");
+            email = user.Email;
+        }
+        else
+        {
+            email = order.GuestEmail
+                ?? throw new ConflictException("An email address is required for guest payment.");
+        }
 
         var amountSubunits = ToSubunits(order.Total);
         var reference = BuildReference(order.Id);
@@ -131,7 +198,7 @@ public sealed class OrderService(
             new PaymentInitializationRequest(
                 amountSubunits,
                 paymentGateway.DefaultCurrency,
-                user.Email,
+                email,
                 reference,
                 callbackUrl),
             ct);
@@ -152,10 +219,12 @@ public sealed class OrderService(
             paymentGateway.DefaultCurrency);
     }
 
-    public async Task<OrderResponse> VerifyPaymentAsync(Guid userId, Guid orderId, CancellationToken ct = default)
+    public async Task<OrderResponse> VerifyPaymentAsync(Guid? userId, Guid orderId, CancellationToken ct = default)
     {
-        var order = await orders.GetTrackedByIdForUserAsync(orderId, userId, ct)
-            ?? throw new NotFoundException("Order not found.");
+        var order = userId.HasValue
+            ? await orders.GetTrackedByIdForUserAsync(orderId, userId.Value, ct)
+            : await orders.GetTrackedByIdAsync(orderId, ct)
+              ?? throw new NotFoundException("Order not found.");
 
         if (order.Status == OrderStatus.Paid)
             return order.ToResponse();

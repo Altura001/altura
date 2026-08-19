@@ -63,7 +63,7 @@ interface CartRepository {
 }
 
 interface OrderRepository {
-    suspend fun checkout(address: Address, deliveryMethod: String? = null, pickupStationId: String? = null): Result<Order, DataError.Network>
+    suspend fun checkout(address: Address, deliveryMethod: String? = null, pickupStationId: String? = null, items: List<com.example.ultra.core.data.CheckoutItemDto>? = null, email: String? = null): Result<Order, DataError.Network>
     suspend fun getOrders(): Result<List<Order>, DataError.Network>
     suspend fun getOrder(orderId: String): Result<Order, DataError.Network>
     suspend fun cancelOrder(orderId: String): Result<Order, DataError.Network>

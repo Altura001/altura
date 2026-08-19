@@ -1,11 +1,14 @@
 package com.example.ultra.checkout.presentation.screen
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,16 +18,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ultra.core.presentation.theme.AlturaOrange
 import java.awt.Desktop
 import java.net.URI
 
 /**
  * Desktop (JVM) actual: opens the Paystack checkout URL in the system browser.
  *
- * JavaFX WebView is not compatible with KMP's JVM target due to JPMS modular JAR resolution.
- * The system browser provides a reliable, fully-featured payment experience.
+ * JavaFX WebView is not compatible with KMP's JVM target (JPMS modular JARs).
+ * We open the system browser and show a manual confirm button for the user
+ * to click after completing payment.
  */
 @Composable
 actual fun PaystackWebView(
@@ -43,20 +49,31 @@ actual fun PaystackWebView(
             try {
                 if (Desktop.isDesktopSupported()) {
                     Desktop.getDesktop().browse(URI(authorizationUrl))
-                } else {
-                    onError("Desktop browsing is not supported on this system")
                 }
-            } catch (e: Exception) {
-                onError(e.message ?: "Failed to open payment page")
+            } catch (_: Exception) {
+                // Browser failed to open — user can still click confirm below
             }
         }
     }
 
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Payment page opened in your browser.", color = Color.Gray)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Complete the payment there, then return here.", color = Color.Gray, fontSize = 13.sp)
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("A browser window has opened with Paystack.", color = Color.DarkGray, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Complete the payment there, then click the button below.", color = Color.Gray, fontSize = 13.sp)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = { onSuccess(reference) },
+            colors = ButtonDefaults.buttonColors(containerColor = AlturaOrange)
+        ) {
+            Text("I've completed payment", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        TextButton(onClick = onCanceled) {
+            Text("Cancel", color = Color.Gray)
         }
     }
 }

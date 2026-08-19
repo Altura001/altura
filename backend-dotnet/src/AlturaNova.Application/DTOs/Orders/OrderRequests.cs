@@ -33,6 +33,16 @@ public sealed record AddressRequest
     public string? Phone { get; init; }
 }
 
+/// <summary>A single item in a guest checkout request (sent when no server-side cart exists).</summary>
+public sealed record CheckoutItemRequest
+{
+    [Required]
+    public required Guid VariantId { get; init; }
+
+    [Required, Range(1, 9999)]
+    public int Quantity { get; init; }
+}
+
 /// <summary>Payload for converting the current cart into an order.</summary>
 public sealed record CheckoutRequest
 {
@@ -45,4 +55,17 @@ public sealed record CheckoutRequest
 
     /// <summary>Required when DeliveryMethod is "Pickup".</summary>
     public Guid? PickupStationId { get; init; }
+
+    /// <summary>
+    /// Guest checkout: cart items sent by the client when no server-side cart exists.
+    /// If null/empty and the user is authenticated, the server-side cart is used.
+    /// </summary>
+    public List<CheckoutItemRequest>? Items { get; init; }
+
+    /// <summary>
+    /// Guest checkout: customer email for payment provider (Paystack).
+    /// Required for guests; authenticated users get their email from their account.
+    /// </summary>
+    [EmailAddress]
+    public string? Email { get; init; }
 }

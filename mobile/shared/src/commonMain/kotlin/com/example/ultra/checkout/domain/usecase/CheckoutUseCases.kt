@@ -1,5 +1,6 @@
 package com.example.ultra.checkout.domain.usecase
 
+import com.example.ultra.core.data.CheckoutItemDto
 import com.example.ultra.core.domain.model.Address
 import com.example.ultra.core.domain.model.Order
 import com.example.ultra.core.domain.model.PaymentInitiation
@@ -12,9 +13,11 @@ class CheckoutUseCase(private val repository: OrderRepository) {
     suspend operator fun invoke(
         address: Address,
         deliveryMethod: String? = null,
-        pickupStationId: String? = null
+        pickupStationId: String? = null,
+        items: List<CheckoutItemDto>? = null,
+        email: String? = null
     ): Result<Order, DataError.Network> =
-        repository.checkout(address, deliveryMethod, pickupStationId)
+        repository.checkout(address, deliveryMethod, pickupStationId, items, email)
 }
 
 class GetOrdersUseCase(private val repository: OrderRepository) {

@@ -31,6 +31,7 @@ class SearchProductsUseCase(private val repository: CatalogRepository) {
 
 class GetPickupStationsUseCase(private val repository: CatalogRepository) {
     suspend operator fun invoke(): Result<List<PickupStation>, DataError.Network> {
+		println("getting pickups")
         return repository.getPickupStations()
     }
 }

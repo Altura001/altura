@@ -1,5 +1,7 @@
+using AlturaNova.Application.DTOs;
 using AlturaNova.Application.DTOs.Catalog;
 using AlturaNova.Application.Interfaces;
+using AlturaNova.Domain.Interfaces;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace AlturaNova.Api.Endpoints;

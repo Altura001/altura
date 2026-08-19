@@ -1,14 +1,15 @@
 package com.example.ultra.checkout.presentation.screen
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitView
-import kotlinx.cocoa.ExperimentalForeignApi
+import kotlinx.cinterop.ExperimentalForeignApi
 import platform.WebKit.WKNavigationDelegateProtocol
 import platform.WebKit.WKWebView
 import platform.WebKit.WKWebViewConfiguration
+import platform.WebKit.WKWebpagePreferences
 import platform.darwin.NSObject
-import platform.posix.memchr
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -20,9 +21,11 @@ actual fun PaystackWebView(
     onError: (message: String) -> Unit,
     modifier: Modifier
 ) {
-    val config = WKWebViewConfiguration().apply {
-        javaScriptEnabled = true
-    }
+    val config = WKWebViewConfiguration()
+    val webpagePreferences = WKWebpagePreferences()
+    webpagePreferences.allowsContentJavaScript = true
+
+    config.defaultWebpagePreferences = webpagePreferences
 
     val webView = remember { WKWebView(frame = platform.CoreGraphics.CGRectMake(0.0, 0.0, 0.0, 0.0), configuration = config) }
 
@@ -48,7 +51,7 @@ actual fun PaystackWebView(
         factory = {
             webView.apply {
                 navigationDelegate = navDelegate
-                loadRequest(platform.Foundation.NSURLRequest(platform.Foundation.NSURL(string = authorizationUrl)!!))
+                loadRequest(platform.Foundation.NSURLRequest(platform.Foundation.NSURL(string = authorizationUrl)))
             }
         }
     )

@@ -1,5 +1,6 @@
 package com.example.ultra.checkout.presentation.intent
 
+import com.example.ultra.core.domain.model.CartItem
 import com.example.ultra.core.domain.model.Order
 import com.example.ultra.core.domain.model.PaymentInitiation
 import com.example.ultra.core.domain.model.PickupStation
@@ -12,8 +13,10 @@ enum class DeliveryMethod { Pickup, Shipping }
 data class CheckoutState(
     val step: CheckoutStep = CheckoutStep.Delivery,
     val isLoading: Boolean = false,
+    val isAuthenticated: Boolean = false,
     val firstName: String = "",
     val lastName: String = "",
+    val email: String = "",
     val line1: String = "",
     val city: String = "",
     val postalCode: String = "",
@@ -28,12 +31,14 @@ data class CheckoutState(
     val selectedStation: PickupStation? = null,
     val order: Order? = null,
     val paymentInitiation: PaymentInitiation? = null,
+    val cartItems: List<CartItem> = emptyList(),
     val error: UiText? = null
 )
 
 sealed interface CheckoutAction {
     data class OnFirstNameChange(val value: String) : CheckoutAction
     data class OnLastNameChange(val value: String) : CheckoutAction
+    data class OnEmailChange(val value: String) : CheckoutAction
     data class OnLine1Change(val value: String) : CheckoutAction
     data class OnCityChange(val value: String) : CheckoutAction
     data class OnPostalCodeChange(val value: String) : CheckoutAction
@@ -51,7 +56,6 @@ sealed interface CheckoutAction {
 }
 
 sealed interface CheckoutEvent {
-    data class OpenUrl(val url: String) : CheckoutEvent
     data class ShowError(val message: UiText) : CheckoutEvent
     data object Done : CheckoutEvent
 }

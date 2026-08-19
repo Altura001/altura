@@ -12,6 +12,9 @@ import com.example.ultra.checkout.presentation.intent.CheckoutEvent
 import com.example.ultra.checkout.presentation.intent.CheckoutState
 import com.example.ultra.checkout.presentation.intent.CheckoutStep
 import com.example.ultra.checkout.presentation.intent.DeliveryMethod
+import com.example.ultra.core.data.CheckoutInfo
+import com.example.ultra.core.data.CheckoutItemDto
+import com.example.ultra.core.data.LocalCheckoutStorage
 import com.example.ultra.core.domain.model.Address
 import com.example.ultra.core.domain.repository.AuthRepository
 import com.example.ultra.core.domain.util.onFailure
@@ -27,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class CheckoutViewModel(
     private val getCartUseCase: GetCartUseCase,
@@ -35,7 +39,8 @@ class CheckoutViewModel(
     private val verifyPaymentUseCase: VerifyPaymentUseCase,
     private val clearCartUseCase: ClearCartUseCase,
     private val authRepository: AuthRepository,
-    private val getPickupStationsUseCase: GetPickupStationsUseCase
+    private val getPickupStationsUseCase: GetPickupStationsUseCase,
+    private val localCheckoutStorage: LocalCheckoutStorage
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CheckoutState())
@@ -44,9 +49,12 @@ class CheckoutViewModel(
     private val _events = Channel<CheckoutEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
+    private val isAuthenticated get() = authRepository.getCurrentUser() != null
+
     init {
         prefilledFromUser()
-        loadCartSummary()
+        loadCheckoutInfo()
+        loadCart()
         loadPickupStations()
     }
 
@@ -54,6 +62,7 @@ class CheckoutViewModel(
         when (action) {
             is CheckoutAction.OnFirstNameChange -> _state.update { it.copy(firstName = action.value) }
             is CheckoutAction.OnLastNameChange -> _state.update { it.copy(lastName = action.value) }
+            is CheckoutAction.OnEmailChange -> _state.update { it.copy(email = action.value) }
             is CheckoutAction.OnLine1Change -> _state.update { it.copy(line1 = action.value) }
             is CheckoutAction.OnCityChange -> _state.update { it.copy(city = action.value) }
             is CheckoutAction.OnPostalCodeChange -> _state.update { it.copy(postalCode = action.value) }
@@ -73,23 +82,64 @@ class CheckoutViewModel(
     }
 
     private fun prefilledFromUser() {
-        val user = authRepository.getCurrentUser() ?: return
+        val user = authRepository.getCurrentUser()
+        _state.update { it.copy(isAuthenticated = user != null) }
+        if (user != null) {
+            _state.update {
+                it.copy(
+                    firstName = user.firstName,
+                    lastName = user.lastName,
+                    email = user.email,
+                    phone = user.phone ?: ""
+                )
+            }
+        }
+    }
+
+    private fun loadCheckoutInfo() {
+        // For guests, load previously saved checkout info from local storage
+        if (isAuthenticated) return
+        val saved = localCheckoutStorage.getCheckoutInfo()
+        if (saved.firstName.isBlank() && saved.email.isBlank()) return
         _state.update {
             it.copy(
-                firstName = user.firstName,
-                lastName = user.lastName,
-                phone = user.phone ?: ""
+                firstName = saved.firstName,
+                lastName = saved.lastName,
+                email = saved.email,
+                line1 = saved.line1,
+                city = saved.city,
+                postalCode = saved.postalCode,
+                country = saved.country,
+                phone = saved.phone
             )
         }
     }
 
-    private fun loadCartSummary() {
+    private fun saveCheckoutInfo() {
+        if (isAuthenticated) return
+        val s = _state.value
+        localCheckoutStorage.saveCheckoutInfo(
+            CheckoutInfo(
+                firstName = s.firstName.trim(),
+                lastName = s.lastName.trim(),
+                email = s.email.trim(),
+                line1 = s.line1.trim(),
+                city = s.city.trim(),
+                postalCode = s.postalCode.trim(),
+                country = s.country.trim(),
+                phone = s.phone.trim()
+            )
+        )
+    }
+
+    private fun loadCart() {
         viewModelScope.launch {
             getCartUseCase().onSuccess { cart ->
                 _state.update {
                     it.copy(
                         cartTotal = cart.total,
-                        currency = cart.currency
+                        currency = cart.currency,
+                        cartItems = cart.items
                     )
                 }
                 recalculateFees()
@@ -127,6 +177,12 @@ class CheckoutViewModel(
             return
         }
 
+        // Email is required for guest checkout
+        if (!isAuthenticated && s.email.isBlank()) {
+            _state.update { it.copy(error = UiText.DynamicString("Email is required for checkout.")) }
+            return
+        }
+
         val address = Address(
             firstName = s.firstName.trim(),
             lastName = s.lastName.trim(),
@@ -139,10 +195,22 @@ class CheckoutViewModel(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
+
+            // Persist checkout info for guests so next time is pre-filled
+            saveCheckoutInfo()
+
             val method = if (s.deliveryMethod == DeliveryMethod.Pickup) "Pickup" else "Shipping"
             val stationId = s.selectedStation?.id
-            checkoutUseCase(address, method, stationId)
+
+            // For guests, send cart items + email; for authenticated users, server uses their cart
+            val items = if (!isAuthenticated) {
+                s.cartItems.map { CheckoutItemDto(variantId = it.variantId, quantity = it.quantity) }
+            } else null
+            val email = if (!isAuthenticated) s.email.trim() else null
+
+            checkoutUseCase(address, method, stationId, items, email)
                 .onSuccess { order ->
+                    println("success ${order.id}")
                     _state.update {
                         it.copy(isLoading = false, order = order, step = CheckoutStep.Payment)
                     }
@@ -155,6 +223,7 @@ class CheckoutViewModel(
     }
 
     private fun startPayment() {
+        println("startPayment ${_state.value.order?.id}")
         val order = _state.value.order ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
@@ -167,7 +236,6 @@ class CheckoutViewModel(
                             step = CheckoutStep.Payment
                         )
                     }
-                    _events.send(CheckoutEvent.OpenUrl(init.authorizationUrl))
                 }
                 .onFailure { error ->
                     _state.update { it.copy(isLoading = false) }
@@ -192,7 +260,7 @@ class CheckoutViewModel(
                     }
                 }
                 if (paid) return@launch
-                if (attempt < MAX_VERIFY_ATTEMPTS - 1) delay(VERIFY_DELAY_MS)
+                if (attempt < MAX_VERIFY_ATTEMPTS - 1) delay(VERIFY_DELAY_MS.milliseconds)
             }
 
             _state.update { it.copy(isLoading = false) }

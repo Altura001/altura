@@ -7,8 +7,11 @@ public class Order
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public Guid UserId { get; set; }
-    public User User { get; set; } = null!;
+    public Guid? UserId { get; set; }
+    public User? User { get; set; }
+
+    /// <summary>Guest email for Paystack payment (null for authenticated users).</summary>
+    public string? GuestEmail { get; set; }
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 

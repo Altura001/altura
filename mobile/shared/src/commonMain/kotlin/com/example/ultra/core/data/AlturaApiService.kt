@@ -1,16 +1,14 @@
 package com.example.ultra.core.data
 
-import com.example.ultra.core.domain.model.BirdImage
+import com.example.ultra.core.data.util.toJsonString
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.accept
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -21,9 +19,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 /** Raised when the backend responds with a non-success status. */
 class ApiException(val statusCode: Int, message: String? = null) :
@@ -165,13 +161,27 @@ class AlturaApiService(
 
 	// ----- Pickup Stations (public) -----------------------------------------
 
-	suspend fun getPickupStations(): List<PickupStationDto> =
-		get("$api/pickup-stations").decode()
+	suspend fun getPickupStations(): List<PickupStationDto> {
+		println("$api koladdd" )
+		val body = get("$api/pickup-stations").decode<List<PickupStationDto>>()
+		println("stations $body")
+
+		return body
+	}
 
 	// ----- Orders + payment (auth) ------------------------------------------
 
-	suspend fun checkout(address: AddressDto, deliveryMethod: String? = null, pickupStationId: String? = null): OrderDto =
-		authorized(HttpMethod.Post, "$api/orders/checkout", CheckoutRequest(address, deliveryMethod, pickupStationId)).decode()
+	suspend fun checkout(address: AddressDto, deliveryMethod: String? = null, pickupStationId: String? = null, items: List<CheckoutItemDto>? = null, email: String? = null): OrderDto {
+		val cr = CheckoutRequest(address, deliveryMethod, pickupStationId, items, email)
+
+		println("getting order ${cr.toJsonString()}")
+		val decode = post(
+			"$api/orders/checkout",
+			cr
+		).decode<OrderDto>()
+		println("$decode result of checkout")
+		return decode
+	}
 
 	suspend fun getOrders(): OrderListDto = authorized(HttpMethod.Get, "$api/orders").decode()
 
@@ -181,12 +191,17 @@ class AlturaApiService(
 	suspend fun cancelOrder(id: String): OrderDto =
 		authorized(HttpMethod.Post, "$api/orders/$id/cancel").decode()
 
-	suspend fun initiatePayment(orderId: String, callbackUrl: String?): PaymentInitiationDto =
-		authorized(
+	suspend fun initiatePayment(orderId: String, callbackUrl: String?): PaymentInitiationDto  {
+		val body = InitiatePaymentRequest(callbackUrl)
+		println("making api call $orderId ${body.toJsonString()}")
+		val decode = authorized(
 			HttpMethod.Post,
 			"$api/orders/$orderId/pay",
-			InitiatePaymentRequest(callbackUrl)
-		).decode()
+			body
+		).decode<PaymentInitiationDto>()
+		println("result of payment $decode")
+		return decode
+	}
 
 	suspend fun verifyPayment(orderId: String): OrderDto =
 		authorized(HttpMethod.Post, "$api/orders/$orderId/verify").decode()
@@ -204,9 +219,9 @@ class AlturaApiService(
 		httpClient.get(url, block)
 
 	private suspend fun post(url: String, body: Any): HttpResponse =
-		httpClient.request(url) {
-			method = HttpMethod.Post
+		httpClient.post(url) {
 			contentType(ContentType.Application.Json)
+			accept(ContentType.Application.Json)
 			setBody(body)
 		}
 
@@ -259,7 +274,9 @@ class AlturaApiService(
 
 	private suspend inline fun <reified T> HttpResponse.decode(): T {
 		if (!status.isSuccess()) throw ApiException(status.value)
-		return body()
+		val x = body<T>()
+		println("Kolade $x")
+		return x
 	}
 }
 
@@ -301,10 +318,15 @@ data class AddCartItemRequest(val variantId: String, val quantity: Int)
 data class UpdateCartItemRequest(val quantity: Int)
 
 @Serializable
+data class CheckoutItemDto(val variantId: String, val quantity: Int)
+
+@Serializable
 data class CheckoutRequest(
 	val shippingAddress: AddressDto,
 	val deliveryMethod: String? = null,
-	val pickupStationId: String? = null
+	val pickupStationId: String? = null,
+	val items: List<CheckoutItemDto>? = null,
+	val email: String? = null
 )
 
 @Serializable
