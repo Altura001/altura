@@ -1,4 +1,4 @@
-package com.example.ultra.checkout.presentation.screen
+package com.example.ultra.shopping.checkout.presentation.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

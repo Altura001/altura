@@ -1,4 +1,4 @@
-package com.example.ultra.checkout.presentation.screen
+package com.example.ultra.shopping.checkout.presentation.screen
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
