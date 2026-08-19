@@ -1,6 +1,7 @@
-package com.example.ultra.food.domain.usecase
+package com.example.ultra.food.home.domain.usecase
 
-import com.example.ultra.food.data.repository.FoodRepository
+import com.example.ultra.food.home.repository.FoodRepository
+
 
 data class FoodUseCases(
     val getRestaurants: GetRestaurantsUseCase,

@@ -82,7 +82,7 @@ import com.example.ultra.core.presentation.theme.AlturaLightGray
 import com.example.ultra.core.presentation.theme.AlturaRed
 import com.example.ultra.core.presentation.theme.AlturaTextPrimary
 import com.example.ultra.core.presentation.theme.AlturaTextSecondaryGray
-import com.example.ultra.navigation.presentation.AppRoute
+import com.example.ultra.core.routing.AppRoute
 import com.example.ultra.searchbar.presentation.screen.SearchBar
 import io.kamel.image.KamelImage
 import io.kamel.image.asyncPainterResource

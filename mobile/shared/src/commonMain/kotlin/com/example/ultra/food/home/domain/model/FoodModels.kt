@@ -1,4 +1,4 @@
-package com.example.ultra.food.domain.model
+package com.example.ultra.food.home.domain.model
 
 import kotlinx.serialization.Serializable
 

@@ -1,10 +1,10 @@
-package com.example.ultra.food.data.repository
+package com.example.ultra.food.home.repository
 
-import com.example.ultra.food.domain.model.FoodOrder
-import com.example.ultra.food.domain.model.MenuItem
-import com.example.ultra.food.domain.model.Restaurant
 import com.example.ultra.core.domain.util.DataError
 import com.example.ultra.core.domain.util.Result
+import com.example.ultra.food.home.domain.model.FoodOrder
+import com.example.ultra.food.home.domain.model.MenuItem
+import com.example.ultra.food.home.domain.model.Restaurant
 
 interface FoodRepository {
     suspend fun getRestaurants(): Result<List<Restaurant>, DataError.Network>

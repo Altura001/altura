@@ -1,19 +1,31 @@
-package com.example.ultra.food.presentation.intent
+package com.example.ultra.food.home.presentation.intent
 
-import com.example.ultra.food.domain.model.FoodCart
-import com.example.ultra.food.domain.model.FoodOrder
-import com.example.ultra.food.domain.model.MenuItem
-import com.example.ultra.food.domain.model.Restaurant
 import com.example.ultra.core.presentation.UiText
+import com.example.ultra.food.home.domain.model.FoodCart
+import com.example.ultra.food.home.domain.model.FoodOrder
+import com.example.ultra.food.home.domain.model.MenuItem
+import com.example.ultra.food.home.domain.model.Restaurant
 
 data class FoodState(
     val isLoading: Boolean = false,
+    val categories: List<FoodCategory> = emptyList(),
+    val popularBrands: List<Brand> = emptyList(),
     val restaurants: List<Restaurant> = emptyList(),
     val selectedRestaurant: Restaurant? = null,
     val menuItems: List<MenuItem> = emptyList(),
     val cart: FoodCart = FoodCart(),
     val orders: List<FoodOrder> = emptyList(),
     val error: UiText? = null
+)
+
+data class FoodCategory(
+    val name: String,
+    val imageUrl: String
+)
+
+data class Brand(
+    val name: String,
+    val imageUrl: String
 )
 
 sealed interface FoodAction {
